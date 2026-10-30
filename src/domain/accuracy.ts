@@ -13,8 +13,8 @@ import { MoveClassification } from '../storage/index.ts';
 export function calculateWinPercent(cp?: number, mate?: number): number {
   if (typeof mate === 'number') {
     if (mate > 0) return 100;
-    if (mate < 0) return 0;
-    return 50;
+    // mate <= 0: negative mate or mate 0 (checkmated) gives 0% win chance
+    return 0;
   }
 
   const centipawns = typeof cp === 'number' && !isNaN(cp) ? cp : 0;

@@ -53,6 +53,7 @@ class ChessEngineService {
   private currentTaskReject: ((err: unknown) => void) | null = null;
   private currentParser: ((line: string) => boolean) | null = null;
   private currentTimeout: number | null = null;
+  private drainingTimeout: number | null = null;
 
   public getLastError(): string | null {
     return this.lastError;
@@ -64,6 +65,10 @@ class ChessEngineService {
   public reset(): void {
     console.log('[Engine] Resetting engine service state...');
     this.cancelQueue();
+    if (this.drainingTimeout !== null) {
+      window.clearTimeout(this.drainingTimeout);
+      this.drainingTimeout = null;
+    }
     if (this.worker) {
       try {
         this.worker.terminate();
@@ -218,10 +223,14 @@ class ChessEngineService {
     this.worker.onmessage = (event: MessageEvent) => {
       const line = typeof event.data === 'string' ? event.data : '';
 
-      // Bug 3 Fix: If draining from a cancelled or timed out task, ignore until bestmove or readyok arrives
+      // FIX 3: If draining from a cancelled or timed out task, accept EITHER readyok OR bestmove
       if (this.isDraining) {
         if (line.startsWith('bestmove') || line.includes('readyok')) {
           console.log('[Engine] Draining complete, received expected boundary:', line);
+          if (this.drainingTimeout !== null) {
+            window.clearTimeout(this.drainingTimeout);
+            this.drainingTimeout = null;
+          }
           this.isDraining = false;
           this.isProcessing = false;
           this.processNextInQueue();
@@ -269,6 +278,37 @@ class ChessEngineService {
       window.clearTimeout(this.currentTimeout);
       this.currentTimeout = null;
     }
+  }
+
+  /**
+   * FIX 3: Start draining mode by sending "stop" then "isready".
+   * Includes a 1000ms safety timer so we never deadlock if worker remains silent.
+   */
+  private startDraining(): void {
+    console.log('[Engine] Entering draining mode (sending stop + isready)...');
+    this.isDraining = true;
+    this.isProcessing = false;
+    this.stop();
+    if (this.worker) {
+      try {
+        this.worker.postMessage('isready');
+      } catch (e) {
+        console.warn('[Engine] Error sending isready during drain:', e);
+      }
+    }
+
+    if (this.drainingTimeout !== null) {
+      window.clearTimeout(this.drainingTimeout);
+    }
+    this.drainingTimeout = window.setTimeout(() => {
+      if (this.isDraining) {
+        console.warn('[Engine] Draining safety timer (1000ms) fired, force-ending drain mode');
+        this.drainingTimeout = null;
+        this.isDraining = false;
+        this.isProcessing = false;
+        this.processNextInQueue();
+      }
+    }, 1000);
   }
 
   private processNextInQueue(): void {
@@ -374,13 +414,19 @@ class ChessEngineService {
             this.currentTaskId = null;
             if (rej) rej(new Error(`Best move calculation timed out after ${timeoutMs}ms`));
 
-            // Bug 3 Fix: Stop engine and drain stale bestmove output
-            this.stop();
-            this.isDraining = true;
-            this.isProcessing = false;
+            // FIX 3: Stop engine and drain stale output with safety timer
+            this.startDraining();
           }, timeoutMs);
 
           this.currentParser = (line: string) => {
+            // FIX 3: Immediately resolve empty string if depth 0 terminal position is received
+            if (line.startsWith('info depth 0')) {
+              console.log('[Engine] Depth 0 terminal position in getBestMove: resolving empty move immediately');
+              window.clearTimeout(this.currentTimeout!);
+              resolve('');
+              return true;
+            }
+
             if (line.startsWith('bestmove')) {
               const parts = line.split(' ');
               const bestMoveResult = parts[1] || '';
@@ -450,10 +496,8 @@ class ChessEngineService {
             this.currentTaskId = null;
             if (rej) rej(new Error(`Evaluation timed out after ${timeoutMs}ms`));
 
-            // Bug 3 Fix: Stop engine and drain stale bestmove output
-            this.stop();
-            this.isDraining = true;
-            this.isProcessing = false;
+            // FIX 3: Stop engine and drain stale output with safety timer
+            this.startDraining();
           }, timeoutMs);
 
           let latestCp: number | undefined;
@@ -462,6 +506,35 @@ class ChessEngineService {
           let bestMove = '';
 
           this.currentParser = (line: string) => {
+            // FIX 3: Defense in depth - terminal depth 0 check
+            // Stockfish sends info depth 0 without bestmove on game-over (mate 0 or cp 0)
+            if (line.startsWith('info depth 0')) {
+              if (line.includes('score cp')) {
+                const match = line.match(/score cp (-?\d+)/);
+                if (match) {
+                  latestCp = parseInt(match[1], 10);
+                  latestMate = undefined;
+                }
+              } else if (line.includes('score mate')) {
+                const match = line.match(/score mate (-?\d+)/);
+                if (match) {
+                  latestMate = parseInt(match[1], 10);
+                  latestCp = undefined;
+                }
+              }
+              console.log(
+                `[Engine] Depth 0 terminal score intercepted in evaluate: cp=${latestCp}, mate=${latestMate}. Resolving immediately.`
+              );
+              window.clearTimeout(this.currentTimeout!);
+              resolve({
+                cp: latestCp,
+                mate: latestMate,
+                bestMove: '',
+                pv: '',
+              });
+              return true;
+            }
+
             if (line.includes('score cp')) {
               const match = line.match(/score cp (-?\d+)/);
               if (match) {
@@ -550,8 +623,7 @@ class ChessEngineService {
     this.queue = [];
 
     if (this.isProcessing) {
-      this.stop();
-      this.isDraining = true;
+      this.startDraining();
     }
     this.isProcessing = false;
   }

@@ -56,6 +56,26 @@ export const ReviewScreen: React.FC = () => {
   const [isPlayingBestLine, setIsPlayingBestLine] = useState<boolean>(false);
   const bestLineTimeoutRef = useRef<number[]>([]);
 
+  // Dev helper: Scholar's Mate (4-move checkmate) for fast verification
+  const loadScholarMateTest = useCallback(() => {
+    console.log('[ReviewScreen] Loading Scholar\'s Mate test game...');
+    const testGame: GameRecord = {
+      id: `test-scholars-mate-${Date.now()}`,
+      date: new Date().toISOString(),
+      userColor: 'white',
+      botLevel: 1,
+      result: 'win',
+      resultReason: 'চেকমেট',
+      fen: 'r1bqkb1r/pppp1Qpp/2n2n2/4p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 4',
+      pgn: '1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#',
+      movesCount: 7,
+      accuracy: 100,
+    };
+    analysisStartedForGameIdRef.current = null;
+    setAnalysis(null);
+    setGame(testGame);
+  }, []);
+
   // Load game from storage
   useEffect(() => {
     const data = getStorageData();
@@ -155,12 +175,50 @@ export const ReviewScreen: React.FC = () => {
           { cp?: number; mate?: number; bestMove: string; pv: string }
         >();
 
-        const evaluateFen = async (f: string) => {
+        // FIX 1 & FIX 4: Never send game-over positions to engine + try/catch with 1 retry
+        const evaluateFenWithRetry = async (
+          f: string
+        ): Promise<{ cp?: number; mate?: number; bestMove: string; pv: string } | null> => {
           if (fenEvals.has(f)) return fenEvals.get(f)!;
-          // evaluate with Skill Level 20 and 300ms movetime
-          const ev = await stockfishEngine.evaluate(f);
-          fenEvals.set(f, ev);
-          return ev;
+
+          // FIX 1: Check terminal position with chess.js before calling engine
+          try {
+            const termChess = new Chess(f);
+            if (termChess.isCheckmate()) {
+              // The side to move in this FEN is checkmated
+              const res = { mate: 0, cp: undefined, bestMove: '', pv: '' };
+              fenEvals.set(f, res);
+              return res;
+            }
+            if (
+              termChess.isStalemate() ||
+              termChess.isDraw() ||
+              termChess.isInsufficientMaterial()
+            ) {
+              const res = { cp: 0, mate: undefined, bestMove: '', pv: '' };
+              fenEvals.set(f, res);
+              return res;
+            }
+          } catch {
+            // If chess.js parse fails, continue to engine
+          }
+
+          // FIX 4: evaluate with Skill Level 20 and 300ms movetime with retry
+          try {
+            const ev = await stockfishEngine.evaluate(f);
+            fenEvals.set(f, ev);
+            return ev;
+          } catch (err1) {
+            console.warn(`[ReviewScreen] Evaluation attempt 1 failed for FEN: ${f}, retrying...`, err1);
+            try {
+              const ev = await stockfishEngine.evaluate(f);
+              fenEvals.set(f, ev);
+              return ev;
+            } catch (err2) {
+              console.error(`[ReviewScreen] Evaluation attempt 2 failed for FEN: ${f}`, err2);
+              return null;
+            }
+          }
         };
 
         const reviewedMoves: ReviewedMove[] = [];
@@ -170,14 +228,32 @@ export const ReviewScreen: React.FC = () => {
         let inaccuracyCount = 0;
         let mistakeCount = 0;
         let blunderCount = 0;
+        let failedPositionsCount = 0;
 
         for (let i = 0; i < positions.length; i++) {
           if (isCancelled) return;
           const pos = positions[i];
           setAnalyzingProgress({ current: i + 1, total: totalPlies });
 
-          const evalBefore = await evaluateFen(pos.fenBefore);
-          const evalAfter = await evaluateFen(pos.fenAfter);
+          const evalBefore = await evaluateFenWithRetry(pos.fenBefore);
+          const evalAfter = await evaluateFenWithRetry(pos.fenAfter);
+
+          // FIX 4: If a position still fails after retry, do not crash; mark unanalyzed
+          if (!evalBefore || !evalAfter) {
+            failedPositionsCount++;
+            reviewedMoves.push({
+              ...pos,
+              classification: undefined,
+              evalBefore: evalBefore || { bestMove: '', pv: '' },
+              evalAfter: evalAfter || { bestMove: '', pv: '' },
+              winDrop: undefined,
+              accuracy: undefined,
+              explanation: undefined,
+              bestMoveSan: evalBefore ? formatUciMoveToBangla(evalBefore.bestMove, pos.fenBefore) : '',
+              bestLine: evalBefore?.pv ? evalBefore.pv.split(' ').slice(0, 3) : [],
+            });
+            continue;
+          }
 
           let classification: MoveClassification | undefined;
           let winDrop: number | undefined;
@@ -185,54 +261,64 @@ export const ReviewScreen: React.FC = () => {
           let explanation: string | undefined;
 
           if (pos.isUser) {
-            // Mover's win percentage before
-            const winBefore = calculateWinPercent(evalBefore.cp, evalBefore.mate);
-            // In fenAfter, score is from opponent perspective, so mover score is -opponentScore
-            const moverCpAfter = typeof evalAfter.cp === 'number' ? -evalAfter.cp : undefined;
-            const moverMateAfter =
-              typeof evalAfter.mate === 'number' ? -evalAfter.mate : undefined;
-            const winAfter = calculateWinPercent(moverCpAfter, moverMateAfter);
+            // FIX 2: Explicitly handle evalAfter.mate === 0 (mover just delivered checkmate)
+            if (evalAfter.mate === 0) {
+              winDrop = 0;
+              moveAccuracy = 100;
+              userMoveAccuracies.push(moveAccuracy);
+              classification = 'brilliant';
+              brilliantCount++;
+              explanation = 'দারুণ! সরাসরি চেকমেট দিয়ে খেলা জিতেছো।';
+            } else {
+              // Mover's win percentage before
+              const winBefore = calculateWinPercent(evalBefore.cp, evalBefore.mate);
+              // In fenAfter, score is from opponent perspective, so mover score is -opponentScore
+              const moverCpAfter = typeof evalAfter.cp === 'number' ? -evalAfter.cp : undefined;
+              const moverMateAfter =
+                typeof evalAfter.mate === 'number' ? -evalAfter.mate : undefined;
+              const winAfter = calculateWinPercent(moverCpAfter, moverMateAfter);
 
-            winDrop = Math.max(0, winBefore - winAfter);
-            moveAccuracy = calculateMoveAccuracy(winDrop);
-            userMoveAccuracies.push(moveAccuracy);
+              winDrop = Math.max(0, winBefore - winAfter);
+              moveAccuracy = calculateMoveAccuracy(winDrop);
+              userMoveAccuracies.push(moveAccuracy);
 
-            const isBest = pos.uci === evalBefore.bestMove;
-            const missedMate = Boolean(
-              evalBefore.mate &&
-                evalBefore.mate > 0 &&
-                (!evalAfter.mate || evalAfter.mate >= 0)
-            );
-            const allowedMate = Boolean(evalAfter.mate && evalAfter.mate > 0);
+              const isBest = pos.uci === evalBefore.bestMove;
+              const missedMate = Boolean(
+                evalBefore.mate &&
+                  evalBefore.mate > 0 &&
+                  (!evalAfter.mate || evalAfter.mate >= 0)
+              );
+              const allowedMate = Boolean(evalAfter.mate && evalAfter.mate > 0);
 
-            classification = classifyMove(winDrop, isBest, missedMate, allowedMate);
+              classification = classifyMove(winDrop, isBest, missedMate, allowedMate);
 
-            switch (classification) {
-              case 'brilliant':
-                brilliantCount++;
-                break;
-              case 'good':
-                goodCount++;
-                break;
-              case 'inaccuracy':
-                inaccuracyCount++;
-                break;
-              case 'mistake':
-                mistakeCount++;
-                break;
-              case 'blunder':
-                blunderCount++;
-                break;
+              switch (classification) {
+                case 'brilliant':
+                  brilliantCount++;
+                  break;
+                case 'good':
+                  goodCount++;
+                  break;
+                case 'inaccuracy':
+                  inaccuracyCount++;
+                  break;
+                case 'mistake':
+                  mistakeCount++;
+                  break;
+                case 'blunder':
+                  blunderCount++;
+                  break;
+              }
+
+              explanation = generateMoveExplanation(
+                pos.fenBefore,
+                pos.uci,
+                evalBefore.bestMove,
+                pos.fenAfter,
+                evalBefore,
+                evalAfter
+              );
             }
-
-            explanation = generateMoveExplanation(
-              pos.fenBefore,
-              pos.uci,
-              evalBefore.bestMove,
-              pos.fenAfter,
-              evalBefore,
-              evalAfter
-            );
           }
 
           // Extract best line (first 3 moves)
@@ -249,6 +335,11 @@ export const ReviewScreen: React.FC = () => {
             bestMoveSan: formatUciMoveToBangla(evalBefore.bestMove, pos.fenBefore),
             bestLine: pvMoves,
           });
+        }
+
+        // FIX 4: Only fail if more than half of positions failed
+        if (failedPositionsCount > totalPlies / 2) {
+          throw new Error('More than half of the positions failed to evaluate.');
         }
 
         const overallAccuracy = calculateGameAccuracy(userMoveAccuracies);
@@ -435,13 +526,22 @@ export const ReviewScreen: React.FC = () => {
 
   if (!game) {
     return (
-      <div className="max-w-md mx-auto px-4 py-12">
+      <div className="max-w-md mx-auto px-4 py-12 space-y-4">
         <EmptyState
           title="কোনো খেলা পাওয়া যায়নি"
           description="রিভিউ করার জন্য প্রথমে বটের সাথে একটি খেলা সম্পন্ন করুন।"
           actionLabel={bn.home.startPlayCTA}
           onAction={() => navigate('/play')}
         />
+        <div className="text-center pt-2">
+          <Button
+            onClick={loadScholarMateTest}
+            variant="secondary"
+            size="sm"
+          >
+            🧪 টেস্ট চেকমেট গেম বিশ্লেষণ (Scholar's Mate)
+          </Button>
+        </div>
       </div>
     );
   }
@@ -494,9 +594,18 @@ export const ReviewScreen: React.FC = () => {
         >
           {bn.ui.back}
         </Button>
-        <span className="text-xs font-mono text-[#6B726D]">
-          বট লেভেল {toBanglaNumeral(game.botLevel)} · {toBanglaNumeral(game.movesCount)} চাল
-        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadScholarMateTest}
+            className="text-xs text-[#1F6F50] hover:text-[#1F6F50]/80 underline font-medium cursor-pointer"
+            title="Scholar's Mate 4-move checkmate"
+          >
+            🧪 টেস্ট চেকমেট গেম
+          </button>
+          <span className="text-xs font-mono text-[#6B726D]">
+            বট লেভেল {toBanglaNumeral(game.botLevel)} · {toBanglaNumeral(game.movesCount)} চাল
+          </span>
+        </div>
       </div>
 
       {/* Summary Card */}
