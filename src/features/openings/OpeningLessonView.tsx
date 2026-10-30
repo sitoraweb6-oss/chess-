@@ -11,13 +11,18 @@ import {
   Play,
   RotateCcw,
   AlertTriangle,
+  Lightbulb,
+  ShieldAlert,
+  GitBranch,
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { Badge } from '../../components/ui/Badge.tsx';
-import { ChessOpening, OpeningTrap } from '../../domain/openings.ts';
-import { updateOpeningProgress, getOpeningProgress } from '../../storage/index.ts';
+import { ChessOpening, OpeningTrap, OpeningVariation } from '../../domain/openings.ts';
+import { updateOpeningProgress, getOpeningProgress, getStorageData } from '../../storage/index.ts';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
+import { BOARD_THEMES, ANIMATION_SPEEDS, getBoardTheme } from '../../utils/theme.ts';
+import { useSettings } from '../../hooks/useSettings.ts';
 
 export interface OpeningLessonViewProps {
   opening: ChessOpening;
@@ -31,15 +36,23 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [activeTrap, setActiveTrap] = useState<OpeningTrap | null>(null);
   const [trapStepIndex, setTrapStepIndex] = useState<number>(0);
+  const [activeVariation, setActiveVariation] = useState<OpeningVariation | null>(null);
+  const [variationStepIndex, setVariationStepIndex] = useState<number>(0);
+
   const [isLessonCompleted, setIsLessonCompleted] = useState<boolean>(() => {
     return getOpeningProgress(opening.id).completedLesson;
   });
+
+  const { settings } = useSettings();
+  const boardThemeColors = getBoardTheme(settings.boardTheme);
 
   // Reset indices when opening changes
   useEffect(() => {
     setCurrentStepIndex(0);
     setActiveTrap(null);
     setTrapStepIndex(0);
+    setActiveVariation(null);
+    setVariationStepIndex(0);
     setIsLessonCompleted(getOpeningProgress(opening.id).completedLesson);
   }, [opening.id]);
 
@@ -47,7 +60,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
   const mainLinePositions = useMemo(() => {
     const positions: { fen: string; lastMoveArrow?: Arrow }[] = [];
     const chess = new Chess();
-    positions.push({ fen: chess.fen() }); // initial position
+    positions.push({ fen: chess.fen() });
 
     for (const m of opening.moves) {
       try {
@@ -96,301 +109,442 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
     return positions;
   }, [activeTrap]);
 
+  // Compute positions for active variation
+  const variationPositions = useMemo(() => {
+    if (!activeVariation) return [];
+    const positions: { fen: string; lastMoveArrow?: Arrow }[] = [];
+    const chess = new Chess();
+    positions.push({ fen: chess.fen() });
+
+    for (const san of activeVariation.movesSan) {
+      try {
+        const moveRes = chess.move(san);
+        if (moveRes) {
+          positions.push({
+            fen: chess.fen(),
+            lastMoveArrow: {
+              startSquare: moveRes.from,
+              endSquare: moveRes.to,
+              color: '#1E88E5',
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('Error applying variation move:', err);
+      }
+    }
+    return positions;
+  }, [activeVariation]);
+
   // Handle step change and completion tracking
   const goToStep = useCallback(
-    (idx: number) => {
-      const clamped = Math.max(0, Math.min(opening.moves.length, idx));
+    (step: number) => {
+      const maxStep = opening.moves.length;
+      const clamped = Math.max(0, Math.min(maxStep, step));
       setCurrentStepIndex(clamped);
 
-      // Check if user reached the end of the lesson
-      if (clamped === opening.moves.length && !isLessonCompleted) {
+      // Mark lesson as complete when user reaches the end
+      if (clamped === maxStep && !isLessonCompleted) {
         setIsLessonCompleted(true);
         updateOpeningProgress(opening.id, { completedLesson: true });
       }
     },
-    [opening, isLessonCompleted]
+    [opening.id, opening.moves.length, isLessonCompleted]
   );
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (activeTrap) {
-        if (e.key === 'ArrowLeft') {
-          setTrapStepIndex((prev) => Math.max(0, prev - 1));
-        } else if (e.key === 'ArrowRight') {
-          setTrapStepIndex((prev) => Math.min(activeTrap.movesSan.length, prev + 1));
-        }
-      } else {
-        if (e.key === 'ArrowLeft') {
-          goToStep(currentStepIndex - 1);
-        } else if (e.key === 'ArrowRight') {
-          goToStep(currentStepIndex + 1);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentStepIndex, activeTrap, goToStep]);
-
-  // Active position & arrow
-  const currentDisplay = useMemo(() => {
+  // Active board state (Trap vs Variation vs Main line)
+  const currentBoardState = useMemo(() => {
     if (activeTrap) {
       const pos = trapPositions[trapStepIndex] || trapPositions[0];
       return {
         fen: pos?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-        arrow: pos?.lastMoveArrow,
+        arrows: pos?.lastMoveArrow ? [pos.lastMoveArrow] : [],
+      };
+    }
+    if (activeVariation) {
+      const pos = variationPositions[variationStepIndex] || variationPositions[0];
+      return {
+        fen: pos?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        arrows: pos?.lastMoveArrow ? [pos.lastMoveArrow] : [],
       };
     }
     const pos = mainLinePositions[currentStepIndex] || mainLinePositions[0];
     return {
       fen: pos?.fen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      arrow: pos?.lastMoveArrow,
+      arrows: pos?.lastMoveArrow ? [pos.lastMoveArrow] : [],
     };
-  }, [activeTrap, trapPositions, trapStepIndex, mainLinePositions, currentStepIndex]);
+  }, [
+    activeTrap,
+    trapPositions,
+    trapStepIndex,
+    activeVariation,
+    variationPositions,
+    variationStepIndex,
+    mainLinePositions,
+    currentStepIndex,
+  ]);
 
   const currentMoveDetail =
-    !activeTrap && currentStepIndex > 0 ? opening.moves[currentStepIndex - 1] : null;
+    currentStepIndex > 0 ? opening.moves[currentStepIndex - 1] : null;
 
   return (
-    <div className="space-y-5">
-      {/* 2-line Main Idea Banner */}
-      <Card variant="surface-2" className="p-4 sm:p-5 space-y-2 border-[#1E2420]/15">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#1F6F50]">
-          <Sparkles className="w-4 h-4" />
-          <span>{bn.openings.mainIdeaTitle}</span>
-        </div>
-        <p className="text-sm font-medium text-[#1E2420] leading-snug">
-          {opening.mainIdeaLines[0]}
-        </p>
-        <p className="text-xs sm:text-sm text-[#6B726D] leading-snug">
-          {opening.mainIdeaLines[1]}
-        </p>
-      </Card>
+    <div className="space-y-6">
+      {/* Lesson Complete Alert Card */}
+      {isLessonCompleted && !activeTrap && !activeVariation && (
+        <Card variant="highlight" className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3 border border-[#1F6F50]/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#E6F2EC] text-[#1F6F50] flex items-center justify-center shrink-0">
+              <Trophy className="w-5 h-5 text-[#E0A43A]" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-[#1F6F50]">
+                {bn.openings.lessonCompleteTitle}
+              </h4>
+              <p className="text-xs text-[#6B726D]">
+                {bn.openings.lessonCompleteDesc}
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={onSwitchToPractice}
+            variant="primary"
+            size="sm"
+            rightIcon={<Play className="w-4 h-4 fill-current" />}
+            className="shrink-0 w-full sm:w-auto"
+          >
+            {bn.openings.btnStartPractice}
+          </Button>
+        </Card>
+      )}
 
-      {/* Main Board and Explanation Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-        {/* Left: Chessboard */}
-        <div className="md:col-span-7 flex flex-col items-center gap-3">
-          <div className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-[#1E2420]/15 select-none bg-[#EEEED2]">
+      {/* Main Interactive Board and Move Stepper */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left: Interactive Board */}
+        <div className="lg:col-span-7 flex flex-col items-center space-y-3">
+          {/* Active Mode Notice */}
+          {activeTrap && (
+            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 text-xs text-red-700 dark:text-red-400 border border-red-200">
+              <span className="font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4" />
+                <span>ফাঁদ: {activeTrap.nameBn}</span>
+              </span>
+              <button
+                onClick={() => setActiveTrap(null)}
+                className="underline hover:opacity-80 cursor-pointer"
+              >
+                মূল লাইনে ফিরুন
+              </button>
+            </div>
+          )}
+
+          {activeVariation && (
+            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-xs text-blue-700 dark:text-blue-400 border border-blue-200">
+              <span className="font-bold flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4" />
+                <span>ভ্যারিয়েশন: {activeVariation.nameBn}</span>
+              </span>
+              <button
+                onClick={() => setActiveVariation(null)}
+                className="underline hover:opacity-80 cursor-pointer"
+              >
+                মূল লাইনে ফিরুন
+              </button>
+            </div>
+          )}
+
+          {/* Chessboard */}
+          <div
+            className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-app select-none transition-colors"
+            style={{ backgroundColor: boardThemeColors.light }}
+          >
             <Chessboard
+              key={`lesson-board-${settings.boardTheme}-${settings.showCoordinates}-${settings.animationSpeed}`}
               options={{
-                position: currentDisplay.fen,
+                position: currentBoardState.fen,
                 boardOrientation: opening.forColor,
-                arrows: currentDisplay.arrow ? [currentDisplay.arrow] : [],
-                darkSquareStyle: { backgroundColor: '#769656' },
-                lightSquareStyle: { backgroundColor: '#EEEED2' },
-                showNotation: true,
+                arrows: currentBoardState.arrows,
+                darkSquareStyle: { backgroundColor: boardThemeColors.dark },
+                lightSquareStyle: { backgroundColor: boardThemeColors.light },
+                darkSquareNotationStyle: { color: boardThemeColors.light },
+                lightSquareNotationStyle: { color: boardThemeColors.dark },
+                showNotation: settings.showCoordinates,
                 allowDragging: false,
+                animationDurationInMs: ANIMATION_SPEEDS[settings.animationSpeed] || 200,
               }}
             />
           </div>
 
-          {/* Stepper Navigation */}
-          <div className="flex items-center justify-center gap-2 w-full max-w-[420px]">
-            {activeTrap ? (
-              <>
-                <Button
-                  onClick={() => setTrapStepIndex(0)}
-                  disabled={trapStepIndex === 0}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setTrapStepIndex((p) => Math.max(0, p - 1))}
-                  disabled={trapStepIndex === 0}
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  leftIcon={<ChevronLeft className="w-4 h-4" />}
-                >
-                  {bn.review.prevMove}
-                </Button>
-                <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
-                  {toBanglaNumeral(trapStepIndex)} / {toBanglaNumeral(activeTrap.movesSan.length)}
-                </span>
-                <Button
-                  onClick={() =>
-                    setTrapStepIndex((p) => Math.min(activeTrap.movesSan.length, p + 1))
-                  }
-                  disabled={trapStepIndex >= activeTrap.movesSan.length}
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  rightIcon={<ChevronRight className="w-4 h-4" />}
-                >
-                  {bn.review.nextMove}
-                </Button>
-                <Button
-                  onClick={() => setTrapStepIndex(activeTrap.movesSan.length)}
-                  disabled={trapStepIndex >= activeTrap.movesSan.length}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  onClick={() => goToStep(0)}
-                  disabled={currentStepIndex === 0}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <ChevronsLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => goToStep(currentStepIndex - 1)}
-                  disabled={currentStepIndex === 0}
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  leftIcon={<ChevronLeft className="w-4 h-4" />}
-                >
-                  {bn.review.prevMove}
-                </Button>
-                <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
-                  {toBanglaNumeral(currentStepIndex)} / {toBanglaNumeral(opening.moves.length)}
-                </span>
-                <Button
-                  onClick={() => goToStep(currentStepIndex + 1)}
-                  disabled={currentStepIndex >= opening.moves.length}
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1"
-                  rightIcon={<ChevronRight className="w-4 h-4" />}
-                >
-                  {bn.review.nextMove}
-                </Button>
-                <Button
-                  onClick={() => goToStep(opening.moves.length)}
-                  disabled={currentStepIndex >= opening.moves.length}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <ChevronsRight className="w-4 h-4" />
-                </Button>
-              </>
-            )}
-          </div>
+          {/* Stepper Controls */}
+          {!activeTrap && !activeVariation && (
+            <div className="flex items-center justify-center gap-2 w-full max-w-[420px]">
+              <Button
+                onClick={() => goToStep(0)}
+                disabled={currentStepIndex === 0}
+                variant="secondary"
+                size="sm"
+                aria-label="শুরুতে"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={() => goToStep(currentStepIndex - 1)}
+                disabled={currentStepIndex === 0}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                leftIcon={<ChevronLeft className="w-4 h-4" />}
+              >
+                পূর্ববর্তী
+              </Button>
+              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+                চাল {toBanglaNumeral(currentStepIndex)} / {toBanglaNumeral(opening.moves.length)}
+              </span>
+              <Button
+                onClick={() => goToStep(currentStepIndex + 1)}
+                disabled={currentStepIndex === opening.moves.length}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                rightIcon={<ChevronRight className="w-4 h-4" />}
+              >
+                পরবর্তী
+              </Button>
+              <Button
+                onClick={() => goToStep(opening.moves.length)}
+                disabled={currentStepIndex === opening.moves.length}
+                variant="secondary"
+                size="sm"
+                aria-label="শেষে"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Trap stepper controls */}
+          {activeTrap && (
+            <div className="flex items-center justify-center gap-2 w-full max-w-[420px]">
+              <Button
+                onClick={() => setTrapStepIndex((prev) => Math.max(0, prev - 1))}
+                disabled={trapStepIndex === 0}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                leftIcon={<ChevronLeft className="w-4 h-4" />}
+              >
+                পূর্ববর্তী
+              </Button>
+              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+                {toBanglaNumeral(trapStepIndex)} / {toBanglaNumeral(activeTrap.movesSan.length)}
+              </span>
+              <Button
+                onClick={() => setTrapStepIndex((prev) => Math.min(activeTrap.movesSan.length, prev + 1))}
+                disabled={trapStepIndex === activeTrap.movesSan.length}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                rightIcon={<ChevronRight className="w-4 h-4" />}
+              >
+                পরবর্তী
+              </Button>
+            </div>
+          )}
+
+          {/* Variation stepper controls */}
+          {activeVariation && (
+            <div className="flex items-center justify-center gap-2 w-full max-w-[420px]">
+              <Button
+                onClick={() => setVariationStepIndex((prev) => Math.max(0, prev - 1))}
+                disabled={variationStepIndex === 0}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                leftIcon={<ChevronLeft className="w-4 h-4" />}
+              >
+                পূর্ববর্তী
+              </Button>
+              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+                {toBanglaNumeral(variationStepIndex)} / {toBanglaNumeral(activeVariation.movesSan.length)}
+              </span>
+              <Button
+                onClick={() => setVariationStepIndex((prev) => Math.min(activeVariation.movesSan.length, prev + 1))}
+                disabled={variationStepIndex === activeVariation.movesSan.length}
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                rightIcon={<ChevronRight className="w-4 h-4" />}
+              >
+                পরবর্তী
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Right: Move explanation or Trap details */}
-        <div className="md:col-span-5 space-y-4">
-          {activeTrap ? (
-            <Card variant="surface" className="p-4 sm:p-5 space-y-3 border-[#E53935]/25 bg-[#FFEBEE]/20">
-              <div className="flex items-center justify-between pb-2 border-b border-[#E53935]/20">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#C62828]">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>{activeTrap.nameBn}</span>
-                </div>
-                <button
-                  onClick={() => setActiveTrap(null)}
-                  className="text-xs font-medium text-[#1F6F50] hover:underline cursor-pointer touch-target flex items-center gap-1"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>মূল লাইনে ফিরে যান</span>
-                </button>
-              </div>
+        {/* Right: "কেন এই চাল?" & Explanation Panel */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Main Idea Card */}
+          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-[#1F6F50]">
+            <span className="text-xs font-semibold text-[#1F6F50] flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4" />
+              <span>{bn.openings.mainIdeaTitle}</span>
+            </span>
+            <ul className="space-y-1.5 text-xs text-[#1E2420] dark:text-[#EDE8DE] leading-relaxed">
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#1F6F50] font-bold">•</span>
+                <span>{opening.mainIdeaLines[0]}</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="text-[#1F6F50] font-bold">•</span>
+                <span>{opening.mainIdeaLines[1]}</span>
+              </li>
+            </ul>
+          </Card>
 
-              <p className="text-xs sm:text-sm text-[#1E2420] leading-relaxed">
-                {activeTrap.descriptionBn}
-              </p>
-
-              <div className="bg-[#FFFDF8] p-3 rounded-lg border border-[#1E2420]/10">
-                <span className="text-xs text-[#6B726D] block mb-1">ফাঁদের সম্পূর্ণ চাল:</span>
-                <p className="text-xs font-mono font-medium text-[#1E2420] leading-relaxed">
-                  {activeTrap.movesSan.join(' ')}
-                </p>
-              </div>
-            </Card>
-          ) : (
-            <Card variant="surface" className="p-4 sm:p-5 space-y-4 border-[#1E2420]/15">
-              <div className="flex items-center justify-between pb-2 border-b border-[#1E2420]/10">
-                <span className="text-xs font-mono font-semibold text-[#1F6F50]">
-                  {currentStepIndex === 0 ? 'সূচনা অবস্থান' : `চাল ${toBanglaNumeral(currentStepIndex)}`}
+          {/* Current Move "কেন এই চাল?" */}
+          {!activeTrap && !activeVariation && (
+            <Card variant="surface-2" className="p-4 space-y-2 border border-[#1E2420]/10">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#1E2420]/10">
+                <span className="text-xs font-bold text-[#1E2420] dark:text-[#EDE8DE]">
+                  {bn.openings.whyThisMove}
                 </span>
                 {currentMoveDetail && (
-                  <span className="text-base font-bold font-mono text-[#1E2420] bg-[#E6F2EC] px-2.5 py-0.5 rounded-lg border border-[#1F6F50]/20">
+                  <span className="font-mono font-bold text-sm px-2 py-0.5 rounded-md bg-[#1F6F50] text-white">
                     {currentMoveDetail.san}
                   </span>
                 )}
               </div>
-
-              {currentMoveDetail ? (
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-[#1F6F50]">
-                    {bn.openings.whyThisMove}
-                  </h4>
-                  <p className="text-sm text-[#1E2420] leading-relaxed">
-                    {currentMoveDetail.explanationBn}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs sm:text-sm text-[#6B726D] leading-relaxed">
-                  বোর্ডের নিচে "পরবর্তী চাল" বাটনে চাপ দিয়ে ওপেনিংয়ের প্রতিটি চাল ও তার পেছনের উদ্দেশ্য দেখে নিন।
-                </p>
-              )}
-
-              {/* Lesson Completion Notice */}
-              {isLessonCompleted && (
-                <div className="pt-2 border-t border-[#1E2420]/10 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#2E7D32]">
-                    <Trophy className="w-4 h-4 text-[#E0A43A]" />
-                    <span>{bn.openings.progressCompleted}</span>
-                  </div>
-                  <Button
-                    onClick={onSwitchToPractice}
-                    variant="primary"
-                    size="sm"
-                    className="w-full"
-                    leftIcon={<Play className="w-4 h-4 fill-current" />}
-                  >
-                    {bn.openings.btnStartPractice}
-                  </Button>
-                </div>
-              )}
+              <p className="text-xs sm:text-sm text-[#1E2420] dark:text-[#EDE8DE] leading-relaxed">
+                {currentMoveDetail
+                  ? currentMoveDetail.explanationBn
+                  : 'বোর্ডের শুরুতে উভয় পক্ষের প্রাথমিক সৈন্য ও ঘুঁটিগুলো তাদের মূল অবস্থানে রয়েছে। পরবর্তী বোতামে চাপ দিয়ে চালগুলো দেখুন।'}
+              </p>
             </Card>
           )}
 
-          {/* Traps Selector Strip */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-[#6B726D] uppercase tracking-wider">
-              {bn.openings.trapsTitle}
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {opening.traps.map((trap) => {
-                const isActive = activeTrap?.id === trap.id;
-                return (
-                  <button
-                    key={trap.id}
+          {/* Gambit Details: Sacrifice, Compensation & Refutation */}
+          {opening.gambitDetails && (
+            <Card variant="surface" className="p-4 space-y-3 border-l-4 border-l-[#E0A43A]">
+              <span className="text-xs font-bold text-[#B87D1B] flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4" />
+                <span>গ্যাম্বিট বিশ্লেষণ ও কৌশল</span>
+              </span>
+
+              <div className="space-y-2 text-xs leading-relaxed">
+                <div>
+                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#B87D1B]">
+                    {bn.openings.gambitSacrificeTitle}
+                  </span>
+                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                    {opening.gambitDetails.sacrificeBn}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#1F6F50]">
+                    {bn.openings.gambitCompensationTitle}
+                  </span>
+                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                    {opening.gambitDetails.compensationBn}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#E53935]">
+                    {bn.openings.gambitRefutationTitle}
+                  </span>
+                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                    {opening.gambitDetails.refutationBn}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Middlegame 3 Plans */}
+          <Card variant="surface" className="p-4 space-y-2">
+            <span className="text-xs font-semibold text-[#1F6F50] flex items-center gap-1.5">
+              <Lightbulb className="w-4 h-4" />
+              <span>{bn.openings.middlegamePlansTitle}</span>
+            </span>
+            <ul className="space-y-1.5 text-xs text-[#6B726D] dark:text-[#A0ABA4] list-disc list-inside">
+              <li>{opening.middlegamePlans[0]}</li>
+              <li>{opening.middlegamePlans[1]}</li>
+              <li>{opening.middlegamePlans[2]}</li>
+            </ul>
+          </Card>
+
+          {/* Typical Beginner Mistakes */}
+          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-[#FB8C00]">
+            <span className="text-xs font-semibold text-[#FB8C00] flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              <span>{bn.openings.typicalMistakesTitle}</span>
+            </span>
+            <ul className="space-y-1 text-xs text-[#6B726D] dark:text-[#A0ABA4] list-disc list-inside">
+              <li>{opening.typicalMistakes[0]}</li>
+              <li>{opening.typicalMistakes[1]}</li>
+            </ul>
+          </Card>
+
+          {/* Variations Section */}
+          {opening.variations && opening.variations.length > 0 && (
+            <Card variant="surface" className="p-4 space-y-2.5">
+              <span className="text-xs font-semibold text-[#1E88E5] flex items-center gap-1.5">
+                <GitBranch className="w-4 h-4" />
+                <span>{bn.openings.variationsTab}</span>
+              </span>
+              <div className="space-y-2">
+                {opening.variations.map((v) => (
+                  <div
+                    key={v.id}
                     onClick={() => {
-                      if (isActive) {
-                        setActiveTrap(null);
-                      } else {
-                        setActiveTrap(trap);
-                        setTrapStepIndex(0);
-                      }
+                      setActiveVariation(v);
+                      setActiveTrap(null);
+                      setVariationStepIndex(0);
                     }}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer touch-target ${
-                      isActive
-                        ? 'border-[#E53935] bg-[#FFEBEE] shadow-xs'
-                        : 'border-[#1E2420]/15 bg-[#FFFDF8] hover:bg-[#F4EFE4]'
-                    }`}
+                    className="p-2.5 rounded-lg border border-[#1E2420]/10 hover:border-[#1E88E5] transition-colors cursor-pointer bg-white dark:bg-[#1A231E]"
                   >
-                    <span className="text-xs font-bold text-[#C62828] block truncate">
-                      ⚠️ {trap.nameBn}
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-[#1E2420] dark:text-[#EDE8DE]">
+                        {v.nameBn}
+                      </span>
+                      <span className="text-[10px] text-[#1E88E5] font-semibold">লাইন দেখুন</span>
+                    </div>
+                    <p className="text-[11px] text-[#6B726D] mt-0.5">{v.descriptionBn}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Traps Section */}
+          <Card variant="surface" className="p-4 space-y-2.5 border-l-4 border-l-[#E53935]">
+            <span className="text-xs font-semibold text-[#E53935] flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              <span>{bn.openings.trapsTitle}</span>
+            </span>
+            <p className="text-xs text-[#6B726D]">{bn.openings.trapsDesc}</p>
+            <div className="space-y-2">
+              {opening.traps.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => {
+                    setActiveTrap(t);
+                    setActiveVariation(null);
+                    setTrapStepIndex(0);
+                  }}
+                  className="p-2.5 rounded-lg border border-red-200 hover:border-red-400 transition-colors cursor-pointer bg-red-50/50 dark:bg-red-950/20"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-red-800 dark:text-red-300">
+                      {t.nameBn}
                     </span>
-                    <span className="text-[11px] text-[#6B726D] mt-0.5 block truncate">
-                      {trap.name}
-                    </span>
-                  </button>
-                );
-              })}
+                    <span className="text-[10px] text-red-600 font-semibold">{bn.openings.viewTrapLine}</span>
+                  </div>
+                  <p className="text-[11px] text-[#6B726D] mt-0.5">{t.descriptionBn}</p>
+                </div>
+              ))}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

@@ -42,7 +42,21 @@ export function getBotMoveTime(level: number): number {
 }
 
 /**
- * Elo calculation with standard K-factor of 32
+ * Returns K-factor: 64 for first 5 provisional games, then standard 32
+ */
+export function getKFactor(completedGamesCount: number): number {
+  return completedGamesCount < 5 ? 64 : 32;
+}
+
+/**
+ * Returns true if rating is still provisional (fewer than 5 games played)
+ */
+export function isProvisionalRating(completedGamesCount: number): boolean {
+  return completedGamesCount < 5;
+}
+
+/**
+ * Elo calculation with dynamic K-factor (64 for first 5 provisional games, then 32)
  */
 export function calculateElo(
   userRating: number,
@@ -60,3 +74,4 @@ export function calculateElo(
     change,
   };
 }
+

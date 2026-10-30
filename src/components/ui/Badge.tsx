@@ -3,7 +3,8 @@ import { MoveClassification } from '../../storage/index.ts';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   quality?: MoveClassification;
-  variant?: 'neutral' | 'accent' | 'primary';
+  variant?: 'neutral' | 'accent' | 'primary' | 'good' | 'mistake' | 'blunder';
+  size?: 'sm' | 'md';
   icon?: React.ReactNode;
 }
 
@@ -11,39 +12,44 @@ export const Badge: React.FC<BadgeProps> = ({
   children,
   quality,
   variant = 'neutral',
+  size = 'md',
   icon,
   className = '',
   ...props
 }) => {
-  let styleClasses = 'bg-[#F4EFE4] text-[#1E2420] border border-[#1E2420]/10';
+  let styleClasses = 'bg-surface-2 text-app border border-app';
 
-  if (quality) {
-    switch (quality) {
+  const effectiveQuality = quality || (variant === 'good' || variant === 'mistake' || variant === 'blunder' ? variant : undefined);
+
+  if (effectiveQuality) {
+    switch (effectiveQuality) {
       case 'brilliant':
-        styleClasses = 'bg-[#E3F2FD] text-[#1E88E5] border border-[#1E88E5]/30 font-semibold';
+        styleClasses = 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-semibold';
         break;
       case 'good':
-        styleClasses = 'bg-[#E8F5E9] text-[#2E7D32] border border-[#43A047]/30 font-semibold';
+        styleClasses = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold';
         break;
       case 'inaccuracy':
-        styleClasses = 'bg-[#FFF8E1] text-[#C47D00] border border-[#F9A825]/40 font-semibold';
+        styleClasses = 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold';
         break;
       case 'mistake':
-        styleClasses = 'bg-[#FFF3E0] text-[#D84315] border border-[#FB8C00]/40 font-semibold';
+        styleClasses = 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border border-orange-500/30 font-semibold';
         break;
       case 'blunder':
-        styleClasses = 'bg-[#FFEBEE] text-[#C62828] border border-[#E53935]/40 font-semibold';
+        styleClasses = 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 font-semibold';
         break;
     }
   } else if (variant === 'accent') {
-    styleClasses = 'bg-[#FDF6E9] text-[#B87D1B] border border-[#E0A43A]/30 font-medium';
+    styleClasses = 'bg-accent-soft text-accent border border-accent/30 font-medium';
   } else if (variant === 'primary') {
-    styleClasses = 'bg-[#E6F2EC] text-[#1F6F50] border border-[#1F6F50]/30 font-medium';
+    styleClasses = 'bg-primary-soft text-primary-themed border border-primary/30 font-medium';
   }
+
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-normal select-none ${styleClasses} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full leading-normal select-none ${sizeClasses} ${styleClasses} ${className}`}
       {...props}
     >
       {icon && <span className="shrink-0">{icon}</span>}

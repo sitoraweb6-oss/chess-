@@ -25,13 +25,13 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantClasses = {
     primary:
-      'bg-[#1F6F50] text-[#FFFDF8] hover:bg-[#17573E] shadow-sm focus-visible:outline-[#1F6F50]',
+      'bg-primary text-white hover:bg-primary-hover shadow-sm focus-visible:outline-primary',
     secondary:
-      'bg-[#E6F2EC] text-[#1F6F50] hover:bg-[#D4E8DE] border border-[#1F6F50]/20 focus-visible:outline-[#1F6F50]',
+      'bg-primary-soft text-primary-themed hover:opacity-90 border border-primary/25 focus-visible:outline-primary',
     ghost:
-      'bg-transparent text-[#1E2420] hover:bg-[#F4EFE4] hover:text-[#1F6F50] focus-visible:outline-[#1F6F50]',
+      'bg-transparent text-app hover:bg-surface-2 hover:text-primary-themed focus-visible:outline-primary',
     danger:
-      'bg-[#E53935] text-[#FFFDF8] hover:bg-[#C62828] shadow-sm focus-visible:outline-[#E53935]',
+      'bg-[#E53935] text-white hover:bg-[#C62828] shadow-sm focus-visible:outline-[#E53935]',
   };
 
   const sizeClasses = {

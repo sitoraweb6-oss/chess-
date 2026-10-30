@@ -1,14 +1,18 @@
 /**
  * Versioned localStorage storage layer for "দাবা শিক্ষক"
  * Validates schemas, provides fallback defaults on corruption,
- * handles migrations, and provides safe accessors.
+ * handles migrations (v1 -> v2 -> v3), and provides safe accessors.
  */
+
+import { EvaluationResult } from '../engine/index.ts';
+import { PersonalPuzzle, getNextDueDate } from '../domain/puzzles.ts';
 
 export type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export interface UserProfile {
   level: UserLevel;
   createdAt: string;
+  placementCompleted: boolean;
 }
 
 export interface RatingHistoryEntry {
@@ -59,12 +63,18 @@ export interface GameRecord {
   accuracy: number;
   movesCount: number;
   analysis?: GameAnalysis;
+  evaluationsByFen?: Record<string, EvaluationResult>;
+  isPlacement?: boolean;
 }
 
 export interface UserSettings {
   sound: boolean;
   showLegalMoves: boolean;
-  boardTheme: 'classic' | 'wood' | 'green';
+  showCoordinates: boolean;
+  appTheme: 'light' | 'dark' | 'paper';
+  boardTheme: 'classic' | 'wood' | 'blue' | 'slate' | 'purple' | 'coral';
+  pieceSet: 'standard' | 'modern';
+  animationSpeed: 'fast' | 'normal' | 'slow';
 }
 
 export interface ActiveGameState {
@@ -75,6 +85,8 @@ export interface ActiveGameState {
   hintsUsed: number;
   undosUsed: number;
   history: string[];
+  evaluationsByFen?: Record<string, EvaluationResult>;
+  isPlacement?: boolean;
 }
 
 export interface OpeningProgressRecord {
@@ -85,7 +97,7 @@ export interface OpeningProgressRecord {
 }
 
 export interface StorageData {
-  version: 2;
+  version: 3;
   profile: UserProfile;
   rating: number;
   ratingHistory: RatingHistoryEntry[];
@@ -93,15 +105,20 @@ export interface StorageData {
   settings: UserSettings;
   activeGame?: ActiveGameState | null;
   openingProgress: Record<string, OpeningProgressRecord>;
+  puzzles: PersonalPuzzle[];
 }
 
 const STORAGE_KEY = 'dabaShikkhok:v1';
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 export const DEFAULT_SETTINGS: UserSettings = {
   sound: true,
   showLegalMoves: true,
+  showCoordinates: true,
+  appTheme: 'light',
   boardTheme: 'classic',
+  pieceSet: 'standard',
+  animationSpeed: 'normal',
 };
 
 export const DEFAULT_STORAGE_DATA: StorageData = {
@@ -109,6 +126,7 @@ export const DEFAULT_STORAGE_DATA: StorageData = {
   profile: {
     level: 'beginner',
     createdAt: new Date().toISOString(),
+    placementCompleted: false,
   },
   rating: 600,
   ratingHistory: [
@@ -123,6 +141,7 @@ export const DEFAULT_STORAGE_DATA: StorageData = {
   settings: DEFAULT_SETTINGS,
   activeGame: null,
   openingProgress: {},
+  puzzles: [],
 };
 
 function isValidObject(val: unknown): val is Record<string, unknown> {
@@ -134,8 +153,7 @@ function validateAndMigrateData(data: unknown): StorageData {
     return { ...DEFAULT_STORAGE_DATA };
   }
 
-  // Version 1 to 2 migration
-  const version = typeof data.version === 'number' ? data.version : 1;
+  // Validate openingProgress
   const rawOpeningProgress = isValidObject(data.openingProgress) ? data.openingProgress : {};
   const openingProgress: Record<string, OpeningProgressRecord> = {};
 
@@ -162,7 +180,11 @@ function validateAndMigrateData(data: unknown): StorageData {
       typeof data.profile.createdAt === 'string'
         ? data.profile.createdAt
         : new Date().toISOString();
-    profile = { level, createdAt };
+    const placementCompleted =
+      typeof data.profile.placementCompleted === 'boolean'
+        ? data.profile.placementCompleted
+        : false;
+    profile = { level, createdAt, placementCompleted };
   }
 
   // Validate rating
@@ -197,14 +219,29 @@ function validateAndMigrateData(data: unknown): StorageData {
 
   // Validate settings
   const rawSettings = isValidObject(data.settings) ? data.settings : {};
+  const validBoardThemes = ['classic', 'wood', 'blue', 'slate', 'purple', 'coral'];
+  const validAppThemes = ['light', 'dark', 'paper'];
+  const validPieceSets = ['standard', 'modern'];
+  const validSpeed = ['fast', 'normal', 'slow'];
+
   const settings: UserSettings = {
     sound: typeof rawSettings.sound === 'boolean' ? rawSettings.sound : true,
     showLegalMoves:
       typeof rawSettings.showLegalMoves === 'boolean' ? rawSettings.showLegalMoves : true,
-    boardTheme:
-      rawSettings.boardTheme === 'wood' || rawSettings.boardTheme === 'green'
-        ? rawSettings.boardTheme
-        : 'classic',
+    showCoordinates:
+      typeof rawSettings.showCoordinates === 'boolean' ? rawSettings.showCoordinates : true,
+    appTheme: validAppThemes.includes(rawSettings.appTheme as string)
+      ? (rawSettings.appTheme as UserSettings['appTheme'])
+      : 'light',
+    boardTheme: validBoardThemes.includes(rawSettings.boardTheme as string)
+      ? (rawSettings.boardTheme as UserSettings['boardTheme'])
+      : 'classic',
+    pieceSet: validPieceSets.includes(rawSettings.pieceSet as string)
+      ? (rawSettings.pieceSet as UserSettings['pieceSet'])
+      : 'standard',
+    animationSpeed: validSpeed.includes(rawSettings.animationSpeed as string)
+      ? (rawSettings.animationSpeed as UserSettings['animationSpeed'])
+      : 'normal',
   };
 
   // Validate active game
@@ -223,19 +260,36 @@ function validateAndMigrateData(data: unknown): StorageData {
         hintsUsed: typeof data.activeGame.hintsUsed === 'number' ? data.activeGame.hintsUsed : 0,
         undosUsed: typeof data.activeGame.undosUsed === 'number' ? data.activeGame.undosUsed : 0,
         history: Array.isArray(data.activeGame.history) ? data.activeGame.history : [],
+        evaluationsByFen: isValidObject(data.activeGame.evaluationsByFen)
+          ? (data.activeGame.evaluationsByFen as Record<string, EvaluationResult>)
+          : undefined,
+        isPlacement: typeof data.activeGame.isPlacement === 'boolean' ? data.activeGame.isPlacement : false,
       };
     }
   }
+
+  // Validate puzzles
+  const puzzles: PersonalPuzzle[] = Array.isArray(data.puzzles)
+    ? data.puzzles.filter((p): p is PersonalPuzzle => {
+        return (
+          isValidObject(p) &&
+          typeof p.id === 'string' &&
+          typeof p.fenBefore === 'string' &&
+          typeof p.bestMoveSan === 'string'
+        );
+      })
+    : [];
 
   return {
     version: CURRENT_VERSION,
     profile,
     rating,
     ratingHistory,
-    games: games.slice(-50), // keep last 50 games
+    games: games.slice(0, 50),
     settings,
     activeGame,
     openingProgress,
+    puzzles,
   };
 }
 
@@ -260,13 +314,18 @@ export function saveStorageData(data: StorageData): void {
   }
 }
 
-export function updateStorageProfile(level: UserLevel, startingRating: number): StorageData {
+export function updateStorageProfile(
+  level: UserLevel,
+  startingRating: number,
+  placementCompleted: boolean = false
+): StorageData {
   const current = getStorageData();
   const updated: StorageData = {
     ...current,
     profile: {
       level,
       createdAt: new Date().toISOString(),
+      placementCompleted,
     },
     rating: startingRating,
     ratingHistory: [
@@ -282,6 +341,8 @@ export function updateStorageProfile(level: UserLevel, startingRating: number): 
   return updated;
 }
 
+export const SETTINGS_CHANGE_EVENT = 'daba:settings-changed';
+
 export function updateUserSettings(settings: Partial<UserSettings>): StorageData {
   const current = getStorageData();
   const updated: StorageData = {
@@ -292,6 +353,9 @@ export function updateUserSettings(settings: Partial<UserSettings>): StorageData
     },
   };
   saveStorageData(updated);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SETTINGS_CHANGE_EVENT, { detail: updated.settings }));
+  }
   return updated;
 }
 
@@ -395,7 +459,6 @@ export function updateOpeningProgress(
   const updatedProgress: OpeningProgressRecord = {
     ...existing,
     ...progress,
-    // Keep best practice score
     practiceScore:
       typeof progress.practiceScore === 'number'
         ? Math.max(existing.practiceScore, progress.practiceScore)
@@ -415,7 +478,7 @@ export function updateOpeningProgress(
   return updated;
 }
 
-export function getTotalOpeningsProgress(totalOpeningsCount: number = 8): {
+export function getTotalOpeningsProgress(totalOpeningsCount: number = 18): {
   completedCount: number;
   totalCount: number;
   avgPracticeScore: number;
@@ -434,6 +497,79 @@ export function getTotalOpeningsProgress(totalOpeningsCount: number = 8): {
     totalCount: totalOpeningsCount,
     avgPracticeScore,
   };
+}
+
+/**
+ * Adds new mistake puzzles to storage, avoiding duplicates by puzzle.id
+ */
+export function addPersonalPuzzles(newPuzzles: PersonalPuzzle[]): StorageData {
+  const current = getStorageData();
+  const existingMap = new Map(current.puzzles.map((p) => [p.id, p]));
+
+  for (const p of newPuzzles) {
+    if (!existingMap.has(p.id)) {
+      existingMap.set(p.id, p);
+    }
+  }
+
+  // Keep up to 100 most recent puzzles
+  const updatedPuzzles = Array.from(existingMap.values()).slice(-100);
+
+  const updated: StorageData = {
+    ...current,
+    puzzles: updatedPuzzles,
+  };
+  saveStorageData(updated);
+  return updated;
+}
+
+/**
+ * Updates a personal puzzle with user result (spaced repetition progression)
+ */
+export function updatePersonalPuzzle(puzzleId: string, isSolved: boolean): StorageData {
+  const current = getStorageData();
+  const updatedPuzzles = current.puzzles.map((p) => {
+    if (p.id !== puzzleId) return p;
+
+    if (isSolved) {
+      const nextBox = Math.min(4, p.box + 1);
+      return {
+        ...p,
+        box: nextBox,
+        dueDate: getNextDueDate(nextBox),
+        solvedCount: p.solvedCount + 1,
+        lastPracticed: new Date().toISOString(),
+      };
+    } else {
+      // Failed: reset to box 0, due tomorrow
+      return {
+        ...p,
+        box: 0,
+        dueDate: getNextDueDate(0),
+        failedCount: p.failedCount + 1,
+        lastPracticed: new Date().toISOString(),
+      };
+    }
+  });
+
+  const updated: StorageData = {
+    ...current,
+    puzzles: updatedPuzzles,
+  };
+  saveStorageData(updated);
+  return updated;
+}
+
+/**
+ * Retrieves all personal puzzles that are currently due for review
+ */
+export function getDuePersonalPuzzles(): PersonalPuzzle[] {
+  const data = getStorageData();
+  const now = Date.now();
+  return data.puzzles.filter((p) => {
+    if (!p.dueDate) return true;
+    return new Date(p.dueDate).getTime() <= now;
+  });
 }
 
 export function hasCompletedOnboarding(): boolean {

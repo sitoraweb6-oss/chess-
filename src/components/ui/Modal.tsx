@@ -54,18 +54,18 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         ref={modalRef}
-        className={`w-full ${maxWidthClasses[maxWidth]} bg-[#FFFDF8] rounded-xl border border-[#1E2420]/15 shadow-xl p-5 sm:p-6 transition-all transform scale-100 max-h-[90vh] overflow-y-auto`}
+        className={`w-full ${maxWidthClasses[maxWidth]} bg-surface rounded-xl border border-app shadow-xl p-5 sm:p-6 transition-all transform scale-100 max-h-[90vh] overflow-y-auto text-app`}
       >
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1E2420]/10">
+        <div className="flex items-center justify-between pb-3 mb-4 border-b border-app">
           {title ? (
-            <h2 className="text-xl font-bold text-[#1E2420]">{title}</h2>
+            <h2 className="text-xl font-bold text-app">{title}</h2>
           ) : (
             <div />
           )}
           <button
             onClick={onClose}
             aria-label={bn.ui.close}
-            className="p-1.5 text-[#6B726D] hover:text-[#1E2420] hover:bg-[#F4EFE4] rounded-lg transition-colors cursor-pointer touch-target flex items-center justify-center"
+            className="p-1.5 text-muted hover:text-app hover:bg-surface-2 rounded-lg transition-colors cursor-pointer touch-target flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>

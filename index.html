@@ -13,8 +13,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      (function() {
+        try {
+          var raw = localStorage.getItem('dabaShikkhok:v1');
+          if (raw) {
+            var data = JSON.parse(raw);
+            var theme = data && data.settings && data.settings.appTheme;
+            if (theme === 'dark') {
+              document.documentElement.classList.add('theme-dark', 'dark');
+            } else if (theme === 'paper') {
+              document.documentElement.classList.add('theme-paper');
+            } else {
+              document.documentElement.classList.add('theme-light');
+            }
+          } else {
+            document.documentElement.classList.add('theme-light');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('theme-light');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-[#FFFDF8] text-[#1E2420] antialiased selection:bg-[#E6F2EC] selection:text-[#1F6F50]">
+  <body class="bg-app text-app antialiased selection:bg-primary-soft selection:text-primary">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

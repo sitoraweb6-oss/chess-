@@ -10,6 +10,9 @@ import { updateOpeningProgress, getOpeningProgress } from '../../storage/index.t
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import { playMoveSound, playCaptureSound, playCheckSound, playVictorySound } from '../../utils/sound.ts';
 import { getStorageData } from '../../storage/index.ts';
+import { BOARD_THEMES, ANIMATION_SPEEDS, getBoardTheme } from '../../utils/theme.ts';
+import { useSettings } from '../../hooks/useSettings.ts';
+
 
 export interface OpeningPracticeViewProps {
   opening: ChessOpening;
@@ -39,9 +42,11 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
   const [isPracticeComplete, setIsPracticeComplete] = useState<boolean>(false);
   const [finalScore, setFinalScore] = useState<number>(100);
 
-  const storageData = getStorageData();
-  const soundEnabled = storageData.settings.sound;
+  const { settings } = useSettings();
+  const soundEnabled = settings.sound;
   const userSide = opening.forColor; // 'white' | 'black'
+  const boardThemeColors = getBoardTheme(settings.boardTheme);
+
 
   // Initialize practice game
   const resetPractice = useCallback(() => {
@@ -340,8 +345,12 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
         {/* Left: Chessboard */}
         <div className="md:col-span-7 flex flex-col items-center gap-3">
-          <div className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-[#1E2420]/15 select-none bg-[#EEEED2]">
+          <div
+            className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-app select-none transition-colors"
+            style={{ backgroundColor: boardThemeColors.light }}
+          >
             <Chessboard
+              key={`practice-board-${settings.boardTheme}-${settings.showCoordinates}-${settings.animationSpeed}`}
               options={{
                 position: fen,
                 boardOrientation: opening.forColor,
@@ -349,13 +358,16 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
                 onSquareClick: handleSquareClick,
                 squareStyles: customSquareStyles,
                 arrows: answerArrow ? [answerArrow] : [],
-                darkSquareStyle: { backgroundColor: '#769656' },
-                lightSquareStyle: { backgroundColor: '#EEEED2' },
-                showNotation: true,
-                animationDurationInMs: 200,
+                darkSquareStyle: { backgroundColor: boardThemeColors.dark },
+                lightSquareStyle: { backgroundColor: boardThemeColors.light },
+                darkSquareNotationStyle: { color: boardThemeColors.light },
+                lightSquareNotationStyle: { color: boardThemeColors.dark },
+                showNotation: settings.showCoordinates,
+                animationDurationInMs: ANIMATION_SPEEDS[settings.animationSpeed] || 200,
               }}
             />
           </div>
+
 
           {isBotThinking && (
             <div className="flex items-center gap-2 text-xs font-medium text-[#1F6F50] animate-pulse">

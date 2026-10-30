@@ -27,6 +27,12 @@ import {
   MoveClassification,
 } from '../../storage/index.ts';
 import { stockfishEngine } from '../../engine/index.ts';
+import { seedEvaluationCache, evaluateFenSafe } from '../../engine/evaluator.ts';
+import { extractMistakePuzzles } from '../../domain/puzzles.ts';
+import { addPersonalPuzzles } from '../../storage/index.ts';
+import { LessonLearnedCard } from './LessonLearnedCard.tsx';
+import { BOARD_THEMES, getBoardTheme } from '../../utils/theme.ts';
+import { useSettings } from '../../hooks/useSettings.ts';
 import {
   calculateWinPercent,
   calculateMoveAccuracy,
@@ -162,6 +168,11 @@ export const ReviewScreen: React.FC = () => {
           });
         }
 
+        // Seed evaluation cache if game has background-evaluated positions
+        if (game.evaluationsByFen) {
+          seedEvaluationCache(game.evaluationsByFen);
+        }
+
         // Reset engine state and hash tables before full game review
         try {
           await stockfishEngine.newGame();
@@ -169,60 +180,20 @@ export const ReviewScreen: React.FC = () => {
           console.warn('[ReviewScreen] newGame error before review:', ngErr);
         }
 
-        // Cache position evaluations to avoid duplicate stockfish calls
-        const fenEvals = new Map<
-          string,
-          { cp?: number; mate?: number; bestMove: string; pv: string }
-        >();
-
-        // FIX 1 & FIX 4: Never send game-over positions to engine + try/catch with 1 retry
         const evaluateFenWithRetry = async (
           f: string
         ): Promise<{ cp?: number; mate?: number; bestMove: string; pv: string } | null> => {
-          if (fenEvals.has(f)) return fenEvals.get(f)!;
-
-          // FIX 1: Check terminal position with chess.js before calling engine
           try {
-            const termChess = new Chess(f);
-            if (termChess.isCheckmate()) {
-              // The side to move in this FEN is checkmated
-              const res = { mate: 0, cp: undefined, bestMove: '', pv: '' };
-              fenEvals.set(f, res);
-              return res;
-            }
-            if (
-              termChess.isStalemate() ||
-              termChess.isDraw() ||
-              termChess.isInsufficientMaterial()
-            ) {
-              const res = { cp: 0, mate: undefined, bestMove: '', pv: '' };
-              fenEvals.set(f, res);
-              return res;
-            }
-          } catch {
-            // If chess.js parse fails, continue to engine
-          }
-
-          // FIX 4: evaluate with Skill Level 20 and 300ms movetime with retry
-          try {
-            const ev = await stockfishEngine.evaluate(f);
-            fenEvals.set(f, ev);
-            return ev;
-          } catch (err1) {
-            console.warn(`[ReviewScreen] Evaluation attempt 1 failed for FEN: ${f}, retrying...`, err1);
-            try {
-              const ev = await stockfishEngine.evaluate(f);
-              fenEvals.set(f, ev);
-              return ev;
-            } catch (err2) {
-              console.error(`[ReviewScreen] Evaluation attempt 2 failed for FEN: ${f}`, err2);
-              return null;
-            }
+            return await evaluateFenSafe(f, { movetime: 300 });
+          } catch (err) {
+            console.error(`[ReviewScreen] Evaluation failed for FEN: ${f}`, err);
+            return null;
           }
         };
 
         const reviewedMoves: ReviewedMove[] = [];
         const userMoveAccuracies: number[] = [];
+
         let brilliantCount = 0;
         let goodCount = 0;
         let inaccuracyCount = 0;
@@ -356,11 +327,19 @@ export const ReviewScreen: React.FC = () => {
         if (!isCancelled) {
           cacheGameAnalysis(game.id, finalAnalysis);
           setAnalysis(finalAnalysis);
+
+          // Extract personal mistake puzzles for spaced repetition review
+          const extractedPuzzles = extractMistakePuzzles(game.id, reviewedMoves);
+          if (extractedPuzzles.length > 0) {
+            addPersonalPuzzles(extractedPuzzles);
+          }
+
           if (reviewedMoves.length > 0) {
             setCurrentMoveIndex(0);
             setDisplayFen(reviewedMoves[0].fenAfter);
           }
         }
+
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         // If cancellation, ignore it
@@ -524,7 +503,22 @@ export const ReviewScreen: React.FC = () => {
     return styles;
   }, [currentMove]);
 
+  const { settings } = useSettings();
+  const boardThemeColors = getBoardTheme(settings.boardTheme);
+
+  // Single most impactful blunder/mistake for "এই খেলায় তুমি কী শিখলে"
+  const criticalMove: ReviewedMove | null = useMemo(() => {
+    if (!analysis) return null;
+    const userBlundersAndMistakes = analysis.moves.filter(
+      (m) => m.isUser && (m.classification === 'blunder' || m.classification === 'mistake')
+    );
+    if (userBlundersAndMistakes.length === 0) return null;
+    userBlundersAndMistakes.sort((a, b) => (b.winDrop || 0) - (a.winDrop || 0));
+    return userBlundersAndMistakes[0];
+  }, [analysis]);
+
   if (!game) {
+
     return (
       <div className="max-w-md mx-auto px-4 py-12 space-y-4">
         <EmptyState
@@ -608,6 +602,15 @@ export const ReviewScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* Teacher Summary: What you learned from this game */}
+      {analysis && (
+        <LessonLearnedCard
+          criticalMove={criticalMove}
+          userColor={game.userColor}
+          boardThemeColors={boardThemeColors}
+        />
+      )}
+
       {/* Summary Card */}
       {analysis && <ReviewSummary analysis={analysis} />}
 
@@ -624,21 +627,28 @@ export const ReviewScreen: React.FC = () => {
             />
 
             {/* Board */}
-            <div className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-[#1E2420]/15 select-none bg-[#EEEED2]">
+            <div
+              className="w-full max-w-[420px] aspect-square rounded-xl overflow-hidden shadow-card border border-app select-none transition-colors"
+              style={{ backgroundColor: boardThemeColors.light }}
+            >
               <Chessboard
+                key={`review-board-${settings.boardTheme}-${settings.showCoordinates}`}
                 options={{
                   position: displayFen,
                   boardOrientation: game.userColor,
                   arrows: reviewArrows,
                   squareStyles,
-                  darkSquareStyle: { backgroundColor: '#769656' },
-                  lightSquareStyle: { backgroundColor: '#EEEED2' },
-                  showNotation: true,
+                  darkSquareStyle: { backgroundColor: boardThemeColors.dark },
+                  lightSquareStyle: { backgroundColor: boardThemeColors.light },
+                  darkSquareNotationStyle: { color: boardThemeColors.light },
+                  lightSquareNotationStyle: { color: boardThemeColors.dark },
+                  showNotation: settings.showCoordinates,
                   allowDragging: false,
                 }}
               />
             </div>
           </div>
+
 
           {/* Navigation Buttons */}
           <div className="flex items-center justify-center gap-2 w-full max-w-[420px]">

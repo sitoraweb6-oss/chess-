@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { Chessboard, Arrow } from 'react-chessboard';
 import { PlaySetup } from './PlaySetup.tsx';
@@ -6,8 +7,10 @@ import { CapturedBar } from './CapturedBar.tsx';
 import { PlayControls } from './PlayControls.tsx';
 import { PromotionModal } from './PromotionModal.tsx';
 import { GameEndModal } from './GameEndModal.tsx';
+import { PlacementResultModal } from './PlacementResultModal.tsx';
 import { Modal } from '../../components/ui/Modal.tsx';
 import { ErrorState } from '../../components/ui/ErrorState.tsx';
+import { Badge } from '../../components/ui/Badge.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import {
   getStorageData,
@@ -15,6 +18,7 @@ import {
   getActiveGame,
   clearActiveGame,
   saveCompletedGame,
+  updateStorageProfile,
   GameRecord,
 } from '../../storage/index.ts';
 import {
@@ -22,15 +26,43 @@ import {
   getBotSkillLevel,
   getBotMoveTime,
   calculateElo,
+  getKFactor,
   DEFAULT_BOT_LEVELS,
 } from '../../domain/rating.ts';
 import { getMaterialDifference } from '../../domain/captured.ts';
-import { stockfishEngine } from '../../engine/index.ts';
-import { playMoveSound, playCaptureSound, playCheckSound, playVictorySound } from '../../utils/sound.ts';
+import { stockfishEngine, EvaluationResult } from '../../engine/index.ts';
+import { backgroundEvaluator } from '../../engine/evaluator.ts';
+import {
+  getAdaptiveBotLevel,
+  estimatePlacementRating,
+  PlacementRatingResult,
+} from '../../domain/placement.ts';
+import { calculateWinPercent } from '../../domain/accuracy.ts';
+import {
+  playMoveSound,
+  playCaptureSound,
+  playCheckSound,
+  playVictorySound,
+} from '../../utils/sound.ts';
+import {
+  BOARD_THEMES,
+  ANIMATION_SPEEDS,
+  getCustomBoardStyles,
+  getBoardTheme,
+} from '../../utils/theme.ts';
+import { useSettings } from '../../hooks/useSettings.ts';
 
 export const PlayScreen: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isPlacementModeFromUrl = searchParams.get('mode') === 'placement';
+  const customFenFromUrl = searchParams.get('fen');
+  const isUnratedFromUrl = searchParams.get('unrated') === 'true' || Boolean(customFenFromUrl);
+
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [botLevel, setBotLevel] = useState<number>(2);
+  const [isPlacementGame, setIsPlacementGame] = useState<boolean>(isPlacementModeFromUrl);
+  const [isUnratedGame, setIsUnratedGame] = useState<boolean>(isUnratedFromUrl);
+  const [botLevel, setBotLevel] = useState<number>(isPlacementModeFromUrl ? 4 : 2);
   const [userColor, setUserColor] = useState<'white' | 'black'>('white');
   const [colorSelection, setColorSelection] = useState<'white' | 'black' | 'random'>('white');
 
@@ -41,6 +73,13 @@ export const PlayScreen: React.FC = () => {
   const [legalMoves, setLegalMoves] = useState<Square[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
   const [hintArrow, setHintArrow] = useState<Arrow | null>(null);
+
+  // Background position evaluations
+  const [evaluationsByFen, setEvaluationsByFen] = useState<Record<string, EvaluationResult>>({});
+
+  // Placement adaptation tracking
+  const userMovesCountRef = useRef<number>(0);
+  const lastWindowWinDropsRef = useRef<number[]>([]);
 
   // Bot & Controls
   const [isBotThinking, setIsBotThinking] = useState<boolean>(false);
@@ -62,8 +101,24 @@ export const PlayScreen: React.FC = () => {
     newRating: number;
   } | null>(null);
 
+  const [placementResultData, setPlacementResultData] = useState<PlacementRatingResult | null>(null);
+
+  const { settings } = useSettings();
   const storageData = getStorageData();
-  const settings = storageData.settings;
+
+  // Background evaluator listener
+  useEffect(() => {
+    backgroundEvaluator.setOnEvalComplete((evalFen, result) => {
+      setEvaluationsByFen((prev) => ({
+        ...prev,
+        [evalFen]: result,
+      }));
+    });
+
+    return () => {
+      backgroundEvaluator.clear();
+    };
+  }, []);
 
   // Initialize engine and restore active game if present
   useEffect(() => {
@@ -78,6 +133,26 @@ export const PlayScreen: React.FC = () => {
     };
     init();
 
+    // Check for custom FEN starting position (e.g. from puzzle "continue play")
+    if (customFenFromUrl) {
+      try {
+        const customChess = new Chess(customFenFromUrl);
+        chessRef.current = customChess;
+        setFen(customChess.fen());
+        const sideToMove = customChess.turn() === 'w' ? 'white' : 'black';
+        setUserColor(sideToMove);
+        setIsUnratedGame(true);
+        setIsPlaying(true);
+        setIsPlacementGame(false);
+        const defaultLvl = DEFAULT_BOT_LEVELS[getStorageData().profile.level] || 3;
+        setBotLevel(defaultLvl);
+        clearActiveGame();
+        return;
+      } catch (err) {
+        console.warn('Failed to parse custom FEN:', err);
+      }
+    }
+
     // Check for saved active game
     const active = getActiveGame();
     if (active) {
@@ -89,36 +164,26 @@ export const PlayScreen: React.FC = () => {
         setBotLevel(active.botLevel);
         setHintsLeft(Math.max(0, 3 - active.hintsUsed));
         setUndosLeft(Math.max(0, 3 - active.undosUsed));
+        setIsPlacementGame(Boolean(active.isPlacement));
+        if (active.evaluationsByFen) {
+          setEvaluationsByFen(active.evaluationsByFen);
+        }
         setIsPlaying(true);
       } catch {
         clearActiveGame();
       }
     } else {
-      const defaultLvl = DEFAULT_BOT_LEVELS[storageData.profile.level] || 2;
-      setBotLevel(defaultLvl);
+      if (isPlacementModeFromUrl) {
+        setIsPlacementGame(true);
+        setBotLevel(4);
+      } else {
+        const defaultLvl = DEFAULT_BOT_LEVELS[storageData.profile.level] || 2;
+        setBotLevel(defaultLvl);
+      }
     }
+  }, [isPlacementModeFromUrl, customFenFromUrl, storageData.profile.level]);
 
-    return () => {
-      stockfishEngine.stop();
-    };
-  }, []);
-
-  const handleRetryEngine = async () => {
-    setIsRetryingEngine(true);
-    try {
-      await stockfishEngine.init({ force: true });
-      setEngineError(null);
-    } catch {
-      setEngineError(bn.ui.engineError);
-    } finally {
-      setIsRetryingEngine(false);
-    }
-  };
-
-  // Check material differences
-  const material = useMemo(() => getMaterialDifference(fen), [fen]);
-
-  // Persist game state helper
+  // Sync to localStorage
   const syncActiveGame = useCallback(() => {
     saveActiveGame({
       fen: chessRef.current.fen(),
@@ -128,14 +193,22 @@ export const PlayScreen: React.FC = () => {
       hintsUsed: 3 - hintsLeft,
       undosUsed: 3 - undosLeft,
       history: chessRef.current.history(),
+      evaluationsByFen,
+      isPlacement: isPlacementGame,
     });
-  }, [userColor, botLevel, hintsLeft, undosLeft]);
+  }, [userColor, botLevel, hintsLeft, undosLeft, evaluationsByFen, isPlacementGame]);
+
+  // Calculate material difference
+  const material = useMemo(() => {
+    return getMaterialDifference(fen);
+  }, [fen]);
 
   // End Game handler
   const handleGameEnd = useCallback(
     (result: 'win' | 'loss' | 'draw', reasonText: string) => {
       clearActiveGame();
       setIsPlaying(false);
+      backgroundEvaluator.clear();
 
       if (result === 'win') {
         playVictorySound(settings.sound);
@@ -143,7 +216,9 @@ export const PlayScreen: React.FC = () => {
 
       const currentRating = getStorageData().rating;
       const bRating = getBotRating(botLevel);
-      const { newRating, change } = calculateElo(currentRating, bRating, result);
+      const completedGamesCount = storageData.games.length;
+      const k = getKFactor(completedGamesCount);
+      const { newRating, change } = calculateElo(currentRating, bRating, result, k);
 
       const gameId = `game-${Date.now()}`;
       const record: GameRecord = {
@@ -155,28 +230,63 @@ export const PlayScreen: React.FC = () => {
         date: new Date().toISOString(),
         result,
         resultReason: reasonText,
-        accuracy: 0, // Will be computed on review
+        accuracy: 0,
         movesCount: chessRef.current.history().length,
+        evaluationsByFen,
+        isPlacement: isPlacementGame,
       };
 
-      saveCompletedGame(record, change, newRating);
+      const finalChange = isUnratedGame ? 0 : change;
+      const finalNewRating = isUnratedGame ? currentRating : newRating;
 
-      setGameEndData({
-        result,
-        reasonText,
-        gameId,
-        ratingChange: change,
-        newRating,
-      });
+      saveCompletedGame(record, finalChange, finalNewRating);
+
+      // If this was a placement game, compute estimated placement rating
+      if (isPlacementGame) {
+        const totalUserMoves = Math.max(1, userMovesCountRef.current);
+        const avgWinDrop =
+          lastWindowWinDropsRef.current.length > 0
+            ? lastWindowWinDropsRef.current.reduce((a, b) => a + b, 0) /
+              lastWindowWinDropsRef.current.length
+            : 15;
+
+        // Approximate accuracy from win drops: 100 - (avgDrop * 2.5)
+        const approxAccuracy = Math.max(30, Math.min(95, Math.round(100 - avgWinDrop * 2.5)));
+        const blunderCount = lastWindowWinDropsRef.current.filter((d) => d >= 20).length;
+        const mistakeCount = lastWindowWinDropsRef.current.filter((d) => d >= 10 && d < 20).length;
+
+        const placementResult = estimatePlacementRating({
+          accuracy: approxAccuracy,
+          blunderCount,
+          mistakeCount,
+          movesCount: chessRef.current.history().length,
+          finalBotLevel: botLevel,
+          result,
+        });
+
+        // Save estimated rating to profile
+        updateStorageProfile('beginner', placementResult.estimatedRating, true);
+        setPlacementResultData(placementResult);
+      } else {
+        setGameEndData({
+          result,
+          reasonText,
+          gameId,
+          ratingChange: change,
+          newRating,
+        });
+      }
     },
-    [botLevel, userColor, settings.sound]
+    [botLevel, userColor, settings.sound, storageData.games.length, evaluationsByFen, isPlacementGame]
   );
 
   // Check Game Over conditions
   const checkGameOver = useCallback((): boolean => {
     const chess = chessRef.current;
     if (chess.isCheckmate()) {
-      const isUserTurn = (chess.turn() === 'w' && userColor === 'white') || (chess.turn() === 'b' && userColor === 'black');
+      const isUserTurn =
+        (chess.turn() === 'w' && userColor === 'white') ||
+        (chess.turn() === 'b' && userColor === 'black');
       if (isUserTurn) {
         handleGameEnd('loss', bn.play.gameEnd.checkmateLoss);
       } else {
@@ -203,9 +313,12 @@ export const PlayScreen: React.FC = () => {
     return false;
   }, [userColor, handleGameEnd]);
 
-  // Bot move logic
+  // Bot move logic: ALWAYS prioritizes bot move over background evaluations
   const makeBotMove = useCallback(async () => {
     if (chessRef.current.isGameOver()) return;
+
+    // Immediately pause any ongoing background evaluation
+    backgroundEvaluator.pause();
     setIsBotThinking(true);
     setHintArrow(null);
 
@@ -225,7 +338,7 @@ export const PlayScreen: React.FC = () => {
           return '';
         });
 
-      // Beginners feature: levels 1-3 occasionally play a fun non-best legal move
+      // Beginners feature: levels 1-3 occasionally play a non-best legal move
       if (
         chosenMoveUci &&
         botLevel <= 3 &&
@@ -239,17 +352,16 @@ export const PlayScreen: React.FC = () => {
         }
       }
 
-      // Ensure at least 500ms delay so user perceives bot thinking
+      // Ensure at least 400ms delay so user perceives bot thinking
       const elapsed = Date.now() - startTime;
-      if (elapsed < 500) {
-        await new Promise((r) => setTimeout(r, 500 - elapsed));
+      if (elapsed < 400) {
+        await new Promise((r) => setTimeout(r, 400 - elapsed));
       }
 
       let moveRes: ReturnType<Chess['move']> | null = null;
       let finalFrom: Square | null = null;
       let finalTo: Square | null = null;
 
-      // Attempt to play the chosen UCI move
       if (chosenMoveUci && chosenMoveUci.length >= 4) {
         const from = chosenMoveUci.slice(0, 2) as Square;
         const to = chosenMoveUci.slice(2, 4) as Square;
@@ -260,35 +372,31 @@ export const PlayScreen: React.FC = () => {
             finalFrom = from;
             finalTo = to;
           }
-        } catch (moveErr) {
-          console.warn('[PlayScreen] Bot engine move failed, will use fallback:', chosenMoveUci, moveErr);
+        } catch {
           moveRes = null;
         }
       }
 
-      // Fallback: If chosen move was empty or failed/threw, pick a random legal move
+      // Fallback: pick any legal move if engine move failed
       if (!moveRes) {
-        console.warn('[PlayScreen] Bot move fallback: selecting random legal move so bot never freezes');
         const legalList = chessRef.current.moves({ verbose: true });
         if (legalList.length > 0) {
           const randomMove = legalList[Math.floor(Math.random() * legalList.length)];
-          try {
-            moveRes = chessRef.current.move({
-              from: randomMove.from,
-              to: randomMove.to,
-              promotion: randomMove.promotion,
-            });
-            if (moveRes) {
-              finalFrom = randomMove.from as Square;
-              finalTo = randomMove.to as Square;
-            }
-          } catch (fallbackErr) {
-            console.error('[PlayScreen] Random fallback move also failed:', fallbackErr);
-          }
+          moveRes = chessRef.current.move({
+            from: randomMove.from,
+            to: randomMove.to,
+            promotion: randomMove.promotion,
+          });
+          finalFrom = randomMove.from;
+          finalTo = randomMove.to;
         }
       }
 
       if (moveRes && finalFrom && finalTo) {
+        const newFen = chessRef.current.fen();
+        setFen(newFen);
+        setLastMove({ from: finalFrom, to: finalTo });
+
         if (moveRes.captured) {
           playCaptureSound(settings.sound);
         } else {
@@ -298,34 +406,44 @@ export const PlayScreen: React.FC = () => {
           playCheckSound(settings.sound);
         }
 
-        setLastMove({ from: finalFrom, to: finalTo });
-        setFen(chessRef.current.fen());
         syncActiveGame();
-        checkGameOver();
-      } else {
-        // If no moves can be made, trigger game over check
+
+        // Enqueue new position for background evaluation while user thinks
+        backgroundEvaluator.enqueue(newFen);
+        // Resume background worker
+        backgroundEvaluator.resume();
+
         checkGameOver();
       }
     } catch (err) {
-      console.warn('[PlayScreen] Bot move caught unexpected error:', err);
-      checkGameOver();
+      console.error('[PlayScreen] Critical error in makeBotMove:', err);
     } finally {
       setIsBotThinking(false);
     }
   }, [botLevel, settings.sound, syncActiveGame, checkGameOver]);
 
-  // Execute a player move
+  // Execute Player Move
   const executePlayerMove = useCallback(
-    (from: Square, to: Square, promotion?: PieceSymbol) => {
+    (from: Square, to: Square, promotionPiece?: PieceSymbol): boolean => {
+      if (isBotThinking) return false;
+
+      const fenBefore = chessRef.current.fen();
+
       try {
-        const moveRes = chessRef.current.move({ from, to, promotion });
+        const moveRes = chessRef.current.move({
+          from,
+          to,
+          promotion: promotionPiece,
+        });
+
         if (!moveRes) return false;
 
+        const newFen = chessRef.current.fen();
+        setFen(newFen);
+        setLastMove({ from, to });
         setSelectedSquare(null);
         setLegalMoves([]);
         setHintArrow(null);
-        setLastMove({ from, to });
-        setFen(chessRef.current.fen());
 
         if (moveRes.captured) {
           playCaptureSound(settings.sound);
@@ -336,7 +454,38 @@ export const PlayScreen: React.FC = () => {
           playCheckSound(settings.sound);
         }
 
+        // Placement mode adaptation check
+        if (isPlacementGame) {
+          userMovesCountRef.current++;
+
+          // Rough win drop estimation from material and balance
+          const evalB = evaluationsByFen[fenBefore];
+          const evalA = evaluationsByFen[newFen];
+          let drop = 5;
+          if (evalB && evalA) {
+            const wBefore = calculateWinPercent(evalB.cp, evalB.mate);
+            const wAfter = calculateWinPercent(evalA.cp, evalA.mate);
+            drop = Math.max(0, wBefore - (100 - wAfter));
+          } else if (moveRes.captured) {
+            drop = 0;
+          }
+          lastWindowWinDropsRef.current.push(drop);
+
+          // Every 5 user moves, adapt bot level
+          if (userMovesCountRef.current % 5 === 0) {
+            const last5 = lastWindowWinDropsRef.current.slice(-5);
+            const avgDrop = last5.reduce((a, b) => a + b, 0) / last5.length;
+            const adapted = getAdaptiveBotLevel(botLevel, avgDrop);
+            if (adapted !== botLevel) {
+              setBotLevel(adapted);
+            }
+          }
+        }
+
         syncActiveGame();
+
+        // Enqueue position for evaluation
+        backgroundEvaluator.enqueue(newFen);
 
         const ended = checkGameOver();
         if (!ended) {
@@ -347,12 +496,11 @@ export const PlayScreen: React.FC = () => {
         return false;
       }
     },
-    [settings.sound, syncActiveGame, checkGameOver, makeBotMove]
+    [isBotThinking, settings.sound, isPlacementGame, evaluationsByFen, botLevel, syncActiveGame, checkGameOver, makeBotMove]
   );
 
   // Start new game
   const handleStartGame = () => {
-    // Reset engine hash tables and cache for the new game
     stockfishEngine.newGame().catch((e) => console.warn('[PlayScreen] newGame error on start:', e));
 
     const finalColor =
@@ -374,6 +522,14 @@ export const PlayScreen: React.FC = () => {
     setUndosLeft(3);
     setIsPlaying(true);
     setGameEndData(null);
+    setPlacementResultData(null);
+    setEvaluationsByFen({});
+    userMovesCountRef.current = 0;
+    lastWindowWinDropsRef.current = [];
+
+    // Enqueue initial position
+    backgroundEvaluator.clear();
+    backgroundEvaluator.enqueue(newChess.fen());
 
     syncActiveGame();
 
@@ -436,117 +592,163 @@ export const PlayScreen: React.FC = () => {
         return;
       }
 
-      // Check if target is a legal move
       const moves = chessRef.current.moves({ square: selectedSquare, verbose: true });
-      const matchingMove = moves.find((m) => m.to === sq);
+      const targetMove = moves.find((m) => m.to === sq);
 
-      if (matchingMove) {
-        if (matchingMove.promotion) {
+      if (targetMove) {
+        const piece = chessRef.current.get(selectedSquare);
+        const isPawnPromotion =
+          piece &&
+          piece.type === 'p' &&
+          ((piece.color === 'w' && sq[1] === '8') || (piece.color === 'b' && sq[1] === '1'));
+
+        if (isPawnPromotion) {
           setPendingPromotion({ from: selectedSquare, to: sq });
           setShowPromotion(true);
-        } else {
-          executePlayerMove(selectedSquare, sq);
+          return;
         }
+
+        executePlayerMove(selectedSquare, sq);
         return;
       }
     }
 
-    // Select piece if it belongs to user
+    // Select piece if it's the user's turn and color
     const piece = chessRef.current.get(sq);
-    if (piece && ((piece.color === 'w' && userColor === 'white') || (piece.color === 'b' && userColor === 'black'))) {
+    if (
+      piece &&
+      ((piece.color === 'w' && userColor === 'white') ||
+        (piece.color === 'b' && userColor === 'black'))
+    ) {
       setSelectedSquare(sq);
       const moves = chessRef.current.moves({ square: sq, verbose: true });
-      setLegalMoves(moves.map((m) => m.to as Square));
+      setLegalMoves(moves.map((m) => m.to));
     } else {
       setSelectedSquare(null);
       setLegalMoves([]);
     }
   };
 
-  // Handle Hint
-  const handleHint = async () => {
-    if (hintsLeft <= 0 || isBotThinking) return;
-    try {
-      const bestMoveUci = await stockfishEngine.getBestMove(chessRef.current.fen(), {
-        movetime: 500,
-      });
-      if (bestMoveUci && bestMoveUci.length >= 4) {
-        const from = bestMoveUci.slice(0, 2);
-        const to = bestMoveUci.slice(2, 4);
-        setHintArrow({
-          startSquare: from,
-          endSquare: to,
-          color: '#E0A43A',
-        });
-        setHintsLeft((prev) => Math.max(0, prev - 1));
-        syncActiveGame();
-      }
-    } catch (err) {
-      console.warn('Hint error:', err);
+  // Promotion choice handler
+  const handlePromotionSelect = (piece: PieceSymbol) => {
+    setShowPromotion(false);
+    if (pendingPromotion) {
+      executePlayerMove(pendingPromotion.from, pendingPromotion.to, piece);
+      setPendingPromotion(null);
     }
   };
 
-  // Handle Undo
-  const handleUndo = () => {
+  // Hint handler
+  const handleRequestHint = async () => {
+    if (hintsLeft <= 0 || isBotThinking) return;
+    try {
+      const bestMoveUci = await stockfishEngine.getBestMove(chessRef.current.fen(), {
+        skillLevel: 20,
+        movetime: 400,
+      });
+      if (bestMoveUci && bestMoveUci.length >= 4) {
+        const from = bestMoveUci.slice(0, 2) as Square;
+        const to = bestMoveUci.slice(2, 4) as Square;
+        setHintArrow({
+          startSquare: from,
+          endSquare: to,
+          color: 'rgba(224, 164, 58, 0.85)',
+        });
+        setHintsLeft((prev) => prev - 1);
+        syncActiveGame();
+      }
+    } catch (err) {
+      console.warn('Hint generation failed:', err);
+    }
+  };
+
+  // Undo move handler
+  const handleUndoMove = () => {
     if (undosLeft <= 0 || isBotThinking) return;
-    const chess = chessRef.current;
-    if (chess.history().length < 2) return;
 
-    chess.undo(); // Undo bot move
-    chess.undo(); // Undo user move
+    const hist = chessRef.current.history({ verbose: true });
+    if (hist.length === 0) return;
 
-    setFen(chess.fen());
+    chessRef.current.undo();
+    if (chessRef.current.turn() !== (userColor === 'white' ? 'w' : 'b') && hist.length > 1) {
+      chessRef.current.undo();
+    }
+
+    setFen(chessRef.current.fen());
     setSelectedSquare(null);
     setLegalMoves([]);
     setHintArrow(null);
     setLastMove(null);
-    setUndosLeft((prev) => Math.max(0, prev - 1));
+    setUndosLeft((prev) => prev - 1);
     syncActiveGame();
   };
 
-  // Square styling for legal moves, highlights, check
+  // Resign handler
+  const handleResign = () => {
+    setShowResignModal(false);
+    handleGameEnd('loss', bn.play.gameEnd.resignation);
+  };
+
+  // Retry engine init
+  const handleRetryEngine = async () => {
+    setIsRetryingEngine(true);
+    try {
+      await stockfishEngine.init({ force: true });
+      setEngineError(null);
+    } catch {
+      setEngineError(bn.ui.engineError);
+    } finally {
+      setIsRetryingEngine(false);
+    }
+  };
+
+  // Custom square styling
   const customSquareStyles = useMemo(() => {
     const styles: Record<string, React.CSSProperties> = {};
 
-    // Legal move dots
-    if (settings.showLegalMoves) {
-      legalMoves.forEach((sq) => {
-        const targetPiece = chessRef.current.get(sq);
-        styles[sq] = {
-          background: targetPiece
-            ? 'radial-gradient(circle, rgba(224, 164, 58, 0.7) 80%, transparent 80%)'
-            : 'radial-gradient(circle, rgba(31, 111, 80, 0.45) 25%, transparent 26%)',
-          borderRadius: '50%',
-        };
-      });
-    }
-
-    // Selected square
-    if (selectedSquare) {
-      styles[selectedSquare] = {
-        backgroundColor: 'rgba(224, 164, 58, 0.4)',
-      };
-    }
-
-    // Last move highlight
     if (lastMove) {
       styles[lastMove.from] = {
-        backgroundColor: 'rgba(224, 164, 58, 0.25)',
+        backgroundColor: 'rgba(224, 164, 58, 0.35)',
       };
       styles[lastMove.to] = {
-        backgroundColor: 'rgba(224, 164, 58, 0.35)',
+        backgroundColor: 'rgba(224, 164, 58, 0.45)',
       };
     }
 
-    // Check highlight
+    if (selectedSquare) {
+      styles[selectedSquare] = {
+        backgroundColor: 'rgba(31, 111, 80, 0.4)',
+        boxShadow: 'inset 0 0 0 3px #1F6F50',
+      };
+    }
+
+    if (settings.showLegalMoves) {
+      for (const sq of legalMoves) {
+        const piece = chessRef.current.get(sq);
+        if (piece) {
+          styles[sq] = {
+            boxShadow: 'inset 0 0 0 4px rgba(31, 111, 80, 0.8)',
+            cursor: 'pointer',
+          };
+        } else {
+          styles[sq] = {
+            background: 'radial-gradient(circle, rgba(31, 111, 80, 0.45) 24%, transparent 25%)',
+            cursor: 'pointer',
+          };
+        }
+      }
+    }
+
     if (chessRef.current.inCheck()) {
-      const turn = chessRef.current.turn();
+      const currentTurn = chessRef.current.turn();
       const board = chessRef.current.board();
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
-          const p = board[r][c];
-          if (p && p.type === 'k' && p.color === turn) {
-            const sq = `${String.fromCharCode(97 + c)}${8 - r}`;
+          const piece = board[r][c];
+          if (piece && piece.type === 'k' && piece.color === currentTurn) {
+            const file = String.fromCharCode(97 + c);
+            const rank = String(8 - r);
+            const sq = `${file}${rank}` as Square;
             styles[sq] = {
               backgroundColor: 'rgba(229, 57, 53, 0.55)',
               boxShadow: 'inset 0 0 10px rgba(229, 57, 53, 0.8)',
@@ -562,6 +764,8 @@ export const PlayScreen: React.FC = () => {
   const customArrows: Arrow[] = useMemo(() => {
     return hintArrow ? [hintArrow] : [];
   }, [hintArrow]);
+
+  const boardThemeColors = BOARD_THEMES[settings.boardTheme] || BOARD_THEMES.classic;
 
   if (engineError) {
     return (
@@ -580,6 +784,17 @@ export const PlayScreen: React.FC = () => {
   if (!isPlaying) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-6">
+        {isPlacementGame && (
+          <div className="mb-4 p-4 rounded-xl bg-[#E6F2EC] dark:bg-[#1F6F50]/20 border border-[#1F6F50]/30 text-center">
+            <Badge variant="primary" className="mb-1">
+              {bn.play.placementModeTitle}
+            </Badge>
+            <p className="text-xs text-[#1F6F50] dark:text-[#E6F2EC] font-medium">
+              {bn.play.placementModeSubtitle}
+            </p>
+          </div>
+        )}
+
         <PlaySetup
           botLevel={botLevel}
           onBotLevelChange={setBotLevel}
@@ -587,6 +802,7 @@ export const PlayScreen: React.FC = () => {
           onColorChange={setColorSelection}
           onStartGame={handleStartGame}
         />
+
         {gameEndData && (
           <GameEndModal
             isOpen={Boolean(gameEndData)}
@@ -596,6 +812,14 @@ export const PlayScreen: React.FC = () => {
             ratingChange={gameEndData.ratingChange}
             newRating={gameEndData.newRating}
             onPlayAgain={handleStartGame}
+          />
+        )}
+
+        {placementResultData && (
+          <PlacementResultModal
+            isOpen={Boolean(placementResultData)}
+            resultData={placementResultData}
+            onContinue={() => navigate('/')}
           />
         )}
       </div>
@@ -611,6 +835,16 @@ export const PlayScreen: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto px-3 sm:px-6 py-4 space-y-3">
+      {/* Top Banner if Placement Mode */}
+      {isPlacementGame && (
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#E6F2EC] dark:bg-[#1F6F50]/20 text-xs text-[#1F6F50] dark:text-[#E6F2EC]">
+          <span className="font-semibold flex items-center gap-1.5">
+            🎯 <span>{bn.play.placementModeTitle}</span>
+          </span>
+          <span className="text-[11px] opacity-80">বট স্তর মানিয়ে নিচ্ছে</span>
+        </div>
+      )}
+
       {/* Top Player (Bot) Bar */}
       <CapturedBar
         color={topColor}
@@ -622,8 +856,12 @@ export const PlayScreen: React.FC = () => {
       />
 
       {/* Chessboard Container */}
-      <div className="w-full max-w-[480px] mx-auto aspect-square rounded-xl overflow-hidden shadow-card border border-[#1E2420]/15 select-none bg-[#EEEED2]">
+      <div
+        className="w-full max-w-[480px] mx-auto aspect-square rounded-xl overflow-hidden shadow-card border border-app select-none transition-colors"
+        style={{ backgroundColor: boardThemeColors.light }}
+      >
         <Chessboard
+          key={`play-board-${settings.boardTheme}-${settings.showCoordinates}-${settings.animationSpeed}`}
           options={{
             position: fen,
             boardOrientation: userColor,
@@ -631,10 +869,12 @@ export const PlayScreen: React.FC = () => {
             onSquareClick: handleSquareClick,
             squareStyles: customSquareStyles,
             arrows: customArrows,
-            darkSquareStyle: { backgroundColor: '#769656' },
-            lightSquareStyle: { backgroundColor: '#EEEED2' },
-            animationDurationInMs: 200,
-            showNotation: true,
+            darkSquareStyle: { backgroundColor: boardThemeColors.dark },
+            lightSquareStyle: { backgroundColor: boardThemeColors.light },
+            darkSquareNotationStyle: { color: boardThemeColors.light },
+            lightSquareNotationStyle: { color: boardThemeColors.dark },
+            animationDurationInMs: ANIMATION_SPEEDS[settings.animationSpeed] || 200,
+            showNotation: settings.showCoordinates,
           }}
         />
       </div>
@@ -648,59 +888,46 @@ export const PlayScreen: React.FC = () => {
         advantage={bottomColor === 'white' ? material.difference : -material.difference}
       />
 
-      {/* Controls Bar */}
+      {/* Control Buttons */}
       <PlayControls
+        isUserTurn={isUserTurn}
         hintsLeft={hintsLeft}
         undosLeft={undosLeft}
-        isBotThinking={isBotThinking}
-        isGameOver={chessRef.current.isGameOver()}
-        onHint={handleHint}
-        onUndo={handleUndo}
+        onHint={handleRequestHint}
+        onUndo={handleUndoMove}
         onResign={() => setShowResignModal(true)}
         onNewGame={() => setShowNewGameModal(true)}
       />
 
-      {/* Pawn Promotion Modal */}
+      {/* Promotion Modal */}
       <PromotionModal
         isOpen={showPromotion}
         color={userColor}
-        onSelect={(piece) => {
-          setShowPromotion(false);
-          if (pendingPromotion) {
-            executePlayerMove(pendingPromotion.from, pendingPromotion.to, piece);
-            setPendingPromotion(null);
-          }
-        }}
-        onCancel={() => {
-          setShowPromotion(false);
-          setPendingPromotion(null);
-        }}
+        onSelect={handlePromotionSelect}
+        onCancel={() => setShowPromotion(false)}
       />
 
-      {/* Resign Confirm Modal */}
+
+      {/* Resign Modal */}
       <Modal
         isOpen={showResignModal}
         onClose={() => setShowResignModal(false)}
-        title={bn.play.modals.resignConfirmTitle}
-        maxWidth="sm"
+        title={bn.play.resignConfirmTitle}
       >
-        <div className="py-2 space-y-4">
-          <p className="text-sm text-[#6B726D]">{bn.play.modals.resignConfirmText}</p>
-          <div className="flex items-center justify-end gap-2">
+        <div className="space-y-4">
+          <p className="text-sm text-[#6B726D]">{bn.play.resignConfirmDesc}</p>
+          <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowResignModal(false)}
-              className="px-4 py-2 text-sm font-medium text-[#1E2420] hover:bg-[#F4EFE4] rounded-lg cursor-pointer touch-target"
+              className="px-4 py-2 text-sm rounded-lg hover:bg-[#1E2420]/10 transition-colors"
             >
-              {bn.play.modals.confirmCancel}
+              {bn.play.resignNo}
             </button>
             <button
-              onClick={() => {
-                setShowResignModal(false);
-                handleGameEnd('loss', bn.play.gameEnd.resignation);
-              }}
-              className="px-4 py-2 text-sm font-semibold text-[#FFFDF8] bg-[#E53935] hover:bg-[#C62828] rounded-xl cursor-pointer touch-target"
+              onClick={handleResign}
+              className="px-4 py-2 text-sm rounded-lg bg-[#E53935] text-white hover:bg-[#D32F2F] transition-colors"
             >
-              {bn.play.modals.confirmYes}
+              {bn.play.resignYes}
             </button>
           </div>
         </div>
@@ -710,17 +937,16 @@ export const PlayScreen: React.FC = () => {
       <Modal
         isOpen={showNewGameModal}
         onClose={() => setShowNewGameModal(false)}
-        title={bn.play.modals.newGameConfirmTitle}
-        maxWidth="sm"
+        title={bn.play.newGameConfirmTitle}
       >
-        <div className="py-2 space-y-4">
-          <p className="text-sm text-[#6B726D]">{bn.play.modals.newGameConfirmText}</p>
-          <div className="flex items-center justify-end gap-2">
+        <div className="space-y-4">
+          <p className="text-sm text-[#6B726D]">{bn.play.newGameConfirmDesc}</p>
+          <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowNewGameModal(false)}
-              className="px-4 py-2 text-sm font-medium text-[#1E2420] hover:bg-[#F4EFE4] rounded-lg cursor-pointer touch-target"
+              className="px-4 py-2 text-sm rounded-lg hover:bg-[#1E2420]/10 transition-colors"
             >
-              {bn.ui.cancel}
+              {bn.play.newGameNo}
             </button>
             <button
               onClick={() => {
@@ -728,24 +954,20 @@ export const PlayScreen: React.FC = () => {
                 clearActiveGame();
                 setIsPlaying(false);
               }}
-              className="px-4 py-2 text-sm font-semibold text-[#FFFDF8] bg-[#1F6F50] hover:bg-[#17573E] rounded-xl cursor-pointer touch-target"
+              className="px-4 py-2 text-sm rounded-lg bg-[#1F6F50] text-white hover:bg-[#17573E] transition-colors"
             >
-              {bn.play.modals.newGameYes}
+              {bn.play.newGameYes}
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Game End Modal */}
-      {gameEndData && (
-        <GameEndModal
-          isOpen={Boolean(gameEndData)}
-          result={gameEndData.result}
-          reasonText={gameEndData.reasonText}
-          gameId={gameEndData.gameId}
-          ratingChange={gameEndData.ratingChange}
-          newRating={gameEndData.newRating}
-          onPlayAgain={handleStartGame}
+      {/* Placement Result Modal */}
+      {placementResultData && (
+        <PlacementResultModal
+          isOpen={Boolean(placementResultData)}
+          resultData={placementResultData}
+          onContinue={() => navigate('/')}
         />
       )}
     </div>

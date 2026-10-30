@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Award, Compass, Sparkles, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Award, Compass, Sparkles, Check, ArrowRight, ArrowLeft, Play } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal.tsx';
 import { Button } from '../../components/ui/Button.tsx';
+import { Card } from '../../components/ui/Card.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import { UserLevel, updateStorageProfile } from '../../storage/index.ts';
 import { STARTING_RATINGS } from '../../domain/rating.ts';
@@ -15,12 +17,19 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
   onComplete,
 }) => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedLevel, setSelectedLevel] = useState<UserLevel>('beginner');
 
-  const handleFinish = () => {
+  const handleStartPlacement = () => {
+    updateStorageProfile('beginner', 600, false);
+    onComplete();
+    navigate('/play?mode=placement');
+  };
+
+  const handleFinishManual = () => {
     const startingRating = STARTING_RATINGS[selectedLevel];
-    updateStorageProfile(selectedLevel, startingRating);
+    updateStorageProfile(selectedLevel, startingRating, true);
     onComplete();
   };
 
@@ -49,10 +58,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     <Modal isOpen={isOpen} onClose={() => {}} title={bn.appName} maxWidth="md">
       <div className="py-2">
         {/* Step indicator */}
-        <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#1E2420]/10 text-xs text-[#6B726D]">
-          <span>ধাপ {toBanglaNumeral(step)} / {toBanglaNumeral(3)}</span>
+        <div className="flex items-center justify-between mb-5 pb-2 border-b border-[#1E2420]/10 text-xs text-[#6B726D]">
+          <span>ধাপ {toBanglaNumeral(step)} / {toBanglaNumeral(2)}</span>
           <div className="flex gap-1.5">
-            {[1, 2, 3].map((s) => (
+            {[1, 2].map((s) => (
               <div
                 key={s}
                 className={`w-6 h-1.5 rounded-full transition-colors ${
@@ -65,20 +74,37 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
         {/* Step 1: Welcome */}
         {step === 1 && (
-          <div className="space-y-4 text-center py-3">
+          <div className="space-y-4 text-center py-2">
             <div className="w-16 h-16 mx-auto bg-[#E6F2EC] text-[#1F6F50] rounded-2xl flex items-center justify-center text-3xl shadow-sm">
               👑
             </div>
-            <h3 className="text-xl font-bold text-[#1E2420]">{bn.onboarding.step1Title}</h3>
-            <p className="text-sm text-[#6B726D] leading-relaxed max-w-md mx-auto">
+            <h3 className="text-xl font-bold text-[#1E2420] dark:text-[#EDE8DE]">{bn.onboarding.step1Title}</h3>
+            <p className="text-sm text-[#6B726D] dark:text-[#A0ABA4] leading-relaxed max-w-md mx-auto">
               {bn.onboarding.step1Desc}
             </p>
-            <div className="pt-4 flex justify-end">
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-left pt-2">
+              <Card variant="surface-2" className="p-3 space-y-1">
+                <span className="text-xs font-bold text-[#1F6F50] block">১. বুদ্ধিমান বট</span>
+                <span className="text-xs text-[#6B726D]">তোমার খেলার মানের সাথে মানিয়ে খেলবে।</span>
+              </Card>
+              <Card variant="surface-2" className="p-3 space-y-1">
+                <span className="text-xs font-bold text-[#1F6F50] block">২. বাংলা রিভিউ</span>
+                <span className="text-xs text-[#6B726D]">ভুলের কারণ ও সঠিক চালের চমৎকার ব্যাখ্যা।</span>
+              </Card>
+              <Card variant="surface-2" className="p-3 space-y-1">
+                <span className="text-xs font-bold text-[#1F6F50] block">৩. ভুলের পাজল</span>
+                <span className="text-xs text-[#6B726D]">নিজের ভুলগুলো থেকেই ব্যক্তিগত অনুশীলন।</span>
+              </Card>
+            </div>
+
+            <div className="pt-3 flex justify-end">
               <Button
                 onClick={() => setStep(2)}
                 variant="primary"
+                size="lg"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto shadow-md"
               >
                 {bn.onboarding.btnNext}
               </Button>
@@ -86,11 +112,61 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
-        {/* Step 2: Experience Level */}
+        {/* Step 2: Placement Game Choice */}
         {step === 2 && (
+          <div className="space-y-5 py-2">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto bg-[#FDF6E9] text-[#E0A43A] rounded-2xl flex items-center justify-center text-2xl shadow-xs">
+                🎯
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-[#1E2420] dark:text-[#EDE8DE]">
+                {bn.onboarding.placementPromptTitle}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#6B726D] dark:text-[#A0ABA4] max-w-md mx-auto leading-relaxed">
+                {bn.onboarding.placementPromptDesc}
+              </p>
+            </div>
+
+            {/* Placement CTA Card */}
+            <Card variant="highlight" className="p-4 sm:p-5 text-center space-y-3">
+              <span className="text-xs font-medium text-[#1F6F50] block">
+                ⚡ কোনো চাপ নেই — এটি একটি মজার বন্ধুত্বপূর্ণ খেলা
+              </span>
+              <Button
+                onClick={handleStartPlacement}
+                variant="primary"
+                size="lg"
+                className="w-full shadow-md py-3 text-base"
+                leftIcon={<Play className="w-5 h-5 fill-current" />}
+              >
+                {bn.onboarding.btnPlayPlacement}
+              </Button>
+            </Card>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-[#1E2420]/10"></div>
+              <span className="flex-shrink mx-4 text-xs text-[#6B726D]">অথবা</span>
+              <div className="flex-grow border-t border-[#1E2420]/10"></div>
+            </div>
+
+            <div className="text-center">
+              <Button
+                onClick={() => setStep(3)}
+                variant="secondary"
+                size="md"
+                className="w-full"
+              >
+                {bn.onboarding.btnSkipPlacement}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Manual Level Picker (if skipped) */}
+        {step === 3 && (
           <div className="space-y-4">
             <div className="text-center mb-2">
-              <h3 className="text-lg font-bold text-[#1E2420]">{bn.onboarding.step2Title}</h3>
+              <h3 className="text-lg font-bold text-[#1E2420] dark:text-[#EDE8DE]">{bn.onboarding.step2Title}</h3>
               <p className="text-xs text-[#6B726D] mt-1">{bn.onboarding.step2Desc}</p>
             </div>
 
@@ -98,99 +174,43 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               {levels.map((lvl) => {
                 const isSelected = selectedLevel === lvl.id;
                 return (
-                  <button
+                  <div
                     key={lvl.id}
-                    type="button"
                     onClick={() => setSelectedLevel(lvl.id)}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 touch-target ${
+                    className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between touch-target ${
                       isSelected
-                        ? 'border-[#1F6F50] bg-[#E6F2EC] shadow-sm'
-                        : 'border-[#1E2420]/15 bg-[#FFFDF8] hover:bg-[#F4EFE4]'
+                        ? 'border-[#1F6F50] bg-[#E6F2EC]/40 dark:bg-[#1F6F50]/20 shadow-xs'
+                        : 'border-[#1E2420]/10 hover:border-[#1E2420]/25 bg-white dark:bg-[#1A231E]'
                     }`}
                   >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#1E2420] dark:text-[#EDE8DE]">
+                          {lvl.title}
+                        </span>
+                        <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#1F6F50]/10 text-[#1F6F50] dark:text-[#E6F2EC]">
+                          রেটিং ~{lvl.rating}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] leading-snug">
+                        {lvl.desc}
+                      </p>
+                    </div>
                     <div
-                      className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-3 ${
                         isSelected
-                          ? 'border-[#1F6F50] bg-[#1F6F50] text-[#FFFDF8]'
-                          : 'border-[#6B726D] bg-transparent'
+                          ? 'border-[#1F6F50] bg-[#1F6F50] text-white'
+                          : 'border-[#1E2420]/30'
                       }`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm text-[#1E2420]">{lvl.title}</span>
-                        <span className="text-xs font-mono text-[#1F6F50] font-medium">
-                          রেটিং: {lvl.rating}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#6B726D] mt-1 leading-normal">{lvl.desc}</p>
-                    </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
 
-            <div className="pt-4 flex items-center justify-between gap-3">
-              <Button
-                onClick={() => setStep(1)}
-                variant="ghost"
-                leftIcon={<ArrowLeft className="w-4 h-4" />}
-              >
-                {bn.onboarding.btnBack}
-              </Button>
-              <Button
-                onClick={() => setStep(3)}
-                variant="primary"
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                {bn.onboarding.btnNext}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: How Review Works */}
-        {step === 3 && (
-          <div className="space-y-4 py-2">
-            <div className="text-center mb-4">
-              <h3 className="text-lg font-bold text-[#1E2420]">{bn.onboarding.step3Title}</h3>
-              <p className="text-xs text-[#6B726D] mt-1">{bn.onboarding.step3Desc}</p>
-            </div>
-
-            <div className="space-y-3 bg-[#F4EFE4]/60 p-4 rounded-xl border border-[#1E2420]/10">
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-[#E6F2EC] text-[#1F6F50] rounded-lg shrink-0 mt-0.5">
-                  <Compass className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#1E2420]">{bn.onboarding.step3Point1}</p>
-                  <p className="text-xs text-[#6B726D]">লেভেল ১ থেকে ১০ পর্যন্ত আপনার সুবিধামতো গতিতে খেলুন।</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-[#FDF6E9] text-[#B87D1B] rounded-lg shrink-0 mt-0.5">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#1E2420]">{bn.onboarding.step3Point2}</p>
-                  <p className="text-xs text-[#6B726D]">অসাবধানতা ও ভুল চালগুলোর বাংলা ব্যাখ্যা ও সঠিক চালের দিকনির্দেশনা।</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-[#E6F2EC] text-[#1F6F50] rounded-lg shrink-0 mt-0.5">
-                  <Award className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#1E2420]">{bn.onboarding.step3Point3}</p>
-                  <p className="text-xs text-[#6B726D]">প্রতিটি খেলার নির্ভুলতা ও এলো (Elo) রেটিং স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে।</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 flex items-center justify-between gap-3">
+            <div className="pt-3 flex items-center justify-between gap-3">
               <Button
                 onClick={() => setStep(2)}
                 variant="ghost"
@@ -198,10 +218,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               >
                 {bn.onboarding.btnBack}
               </Button>
+
               <Button
-                onClick={handleFinish}
+                onClick={handleFinishManual}
                 variant="primary"
-                rightIcon={<Sparkles className="w-4 h-4" />}
+                size="md"
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+                className="shadow-sm"
               >
                 {bn.onboarding.btnStart}
               </Button>

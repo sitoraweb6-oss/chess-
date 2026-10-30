@@ -1,12 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Sparkles, BookOpen, Puzzle, Trophy, History } from 'lucide-react';
+import {
+  Play,
+  Sparkles,
+  BookOpen,
+  Puzzle,
+  Trophy,
+  History,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertCircle,
+  Lightbulb,
+  ArrowRight,
+} from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { Badge } from '../../components/ui/Badge.tsx';
 import { EmptyState } from '../../components/ui/EmptyState.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
-import { getStorageData, StorageData, GameRecord, getTotalOpeningsProgress } from '../../storage/index.ts';
+import {
+  getStorageData,
+  StorageData,
+  GameRecord,
+  getDuePersonalPuzzles,
+} from '../../storage/index.ts';
+import { isProvisionalRating, getBotRating } from '../../domain/rating.ts';
+import { buildWeaknessProfile, getSuggestedOpening } from '../../domain/profile.ts';
 
 export const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -15,8 +35,6 @@ export const HomeScreen: React.FC = () => {
   useEffect(() => {
     setData(getStorageData());
   }, []);
-
-  const openingsProgress = getTotalOpeningsProgress(8);
 
   // Time-based greeting
   const hour = new Date().getHours();
@@ -27,26 +45,52 @@ export const HomeScreen: React.FC = () => {
     greeting = bn.home.greetingEvening;
   }
 
-  const lastGame: GameRecord | undefined = data.games[0];
+  // Games count this week
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const gamesThisWeek = data.games.filter(
+    (g) => new Date(g.date).getTime() >= oneWeekAgo
+  ).length;
 
-  // Calculate average accuracy
-  const analyzedGames = data.games.filter((g) => g.accuracy > 0);
-  const avgAccuracy =
-    analyzedGames.length > 0
-      ? Math.round(
-          analyzedGames.reduce((acc, g) => acc + g.accuracy, 0) / analyzedGames.length
-        )
-      : 0;
+  // Trend indicator based on recent rating history
+  const recentRatings = data.ratingHistory.slice(-5);
+  let trendType: 'up' | 'stable' | 'down' = 'stable';
+  if (recentRatings.length >= 2) {
+    const netChange = recentRatings[recentRatings.length - 1].rating - recentRatings[0].rating;
+    if (netChange >= 20) trendType = 'up';
+    else if (netChange <= -20) trendType = 'down';
+  }
+
+  const isProvisional = isProvisionalRating(data.games.length);
+
+  // Weakness Profile & Suggestions
+  const weaknessProfile = buildWeaknessProfile(data.games);
+  const primaryWeakness = weaknessProfile.topWeaknesses[0];
+
+  // Most played color
+  const whiteGames = data.games.filter((g) => g.userColor === 'white').length;
+  const favoriteColor = whiteGames >= data.games.length - whiteGames ? 'white' : 'black';
+  const suggestedOpening = getSuggestedOpening(data.rating, favoriteColor);
+
+  // Due personal puzzles count
+  const duePuzzles = getDuePersonalPuzzles();
+  const duePuzzlesCount = duePuzzles.length;
+
+  // Recommended bot level based on current rating
+  // 400-600 -> Lvl 2, 600-800 -> Lvl 3, 800-1000 -> Lvl 4, etc.
+  const recommendedBotLevel = Math.max(1, Math.min(8, Math.round((data.rating - 200) / 200)));
+  const recommendedBotRating = getBotRating(recommendedBotLevel);
+
+  const lastGame: GameRecord | undefined = data.games[0];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Hero Welcome & Stats */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#1E2420] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1E2420] dark:text-[#EDE8DE] tracking-tight">
             {greeting}
           </h1>
-          <p className="text-sm text-[#6B726D] mt-1">
+          <p className="text-sm text-[#6B726D] dark:text-[#A0ABA4] mt-1">
             {bn.tagline}
           </p>
         </div>
@@ -59,37 +103,216 @@ export const HomeScreen: React.FC = () => {
           className="shadow-md"
           leftIcon={<Play className="w-5 h-5 fill-current" />}
         >
-          {bn.home.startPlayCTA}
+          {bn.home.card4Action}
         </Button>
       </div>
 
-      {/* Metric Cards Strip */}
+      {/* Progress Strip: Rating, Provisional Badge, Games this week, Trend */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        {/* Rating Card */}
         <Card variant="surface" className="text-center p-3 sm:p-4">
           <span className="text-xs text-[#6B726D] block">{bn.home.currentRating}</span>
-          <span className="text-xl sm:text-2xl font-bold font-mono text-[#1F6F50] mt-1 block">
-            {toBanglaNumeral(data.rating)}
+          <div className="flex items-center justify-center gap-1.5 mt-1">
+            <span className="text-xl sm:text-2xl font-bold font-mono text-[#1F6F50] dark:text-[#E6F2EC]">
+              {toBanglaNumeral(data.rating)}
+            </span>
+            {isProvisional && (
+              <Badge variant="accent" size="sm">
+                {bn.home.provisionalBadge}
+              </Badge>
+            )}
+          </div>
+        </Card>
+
+        {/* Games this week Card */}
+        <Card variant="surface" className="text-center p-3 sm:p-4">
+          <span className="text-xs text-[#6B726D] block">{bn.home.gamesThisWeek}</span>
+          <span className="text-xl sm:text-2xl font-bold font-mono text-[#1E2420] dark:text-[#EDE8DE] mt-1 block">
+            {toBanglaNumeral(gamesThisWeek)}
           </span>
         </Card>
 
-        <Card variant="surface" className="text-center p-3 sm:p-4">
-          <span className="text-xs text-[#6B726D] block">{bn.home.gamesPlayed}</span>
-          <span className="text-xl sm:text-2xl font-bold font-mono text-[#1E2420] mt-1 block">
-            {toBanglaNumeral(data.games.length)}
-          </span>
+        {/* Trend Card */}
+        <Card variant="surface" className="text-center p-3 sm:p-4 flex flex-col justify-center items-center">
+          <span className="text-xs text-[#6B726D] block">খেলার ধারা</span>
+          <div className="flex items-center gap-1 mt-1 font-medium text-xs sm:text-sm">
+            {trendType === 'up' && (
+              <>
+                <TrendingUp className="w-4 h-4 text-[#43A047]" />
+                <span className="text-[#43A047]">{bn.home.trendUp}</span>
+              </>
+            )}
+            {trendType === 'stable' && (
+              <>
+                <Minus className="w-4 h-4 text-[#E0A43A]" />
+                <span className="text-[#E0A43A]">{bn.home.trendStable}</span>
+              </>
+            )}
+            {trendType === 'down' && (
+              <>
+                <TrendingDown className="w-4 h-4 text-[#FB8C00]" />
+                <span className="text-[#FB8C00]">{bn.home.trendDown}</span>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* "আজকের পাঠ" Personal Coach Header */}
+      <div className="space-y-1 pt-1">
+        <h2 className="text-xl font-bold text-[#1E2420] dark:text-[#EDE8DE] flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#1F6F50]" />
+          <span>{bn.home.todaysLessonTitle}</span>
+        </h2>
+        <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4]">
+          {bn.home.todaysLessonSubtitle}
+        </p>
+      </div>
+
+      {/* 4 Personal Coach Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card 1: Top Weakness Practice */}
+        <Card variant="surface" className="p-4 sm:p-5 flex flex-col justify-between space-y-3 border-l-4 border-l-[#E53935] shadow-card">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#E53935] flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4" />
+                <span>{bn.home.card1Title}</span>
+              </span>
+              {primaryWeakness && primaryWeakness.count > 0 && (
+                <Badge variant="mistake" size="sm">
+                  {toBanglaNumeral(primaryWeakness.count)} বার হয়েছে
+                </Badge>
+              )}
+            </div>
+            <h3 className="font-bold text-base text-[#1E2420] dark:text-[#EDE8DE]">
+              {primaryWeakness ? primaryWeakness.titleBn : 'ঘুঁটির নিরাপত্তা বজায় রাখা'}
+            </h3>
+            <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] leading-relaxed">
+              {primaryWeakness ? primaryWeakness.tipBn : 'চাল দেওয়ার আগে নিশ্চিত হয়ে নাও কোনো ঘুঁটি অরক্ষিত থেকে যাচ্ছে কি না।'}
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={() => navigate('/puzzles')}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              {bn.home.card1Action}
+            </Button>
+          </div>
         </Card>
 
-        <Card variant="surface" className="text-center p-3 sm:p-4">
-          <span className="text-xs text-[#6B726D] block">{bn.home.accuracyAvg}</span>
-          <span className="text-xl sm:text-2xl font-bold font-mono text-[#E0A43A] mt-1 block">
-            {avgAccuracy > 0 ? `${toBanglaNumeral(avgAccuracy)}%` : '—'}
-          </span>
+        {/* Card 2: "তোমার ভুল থেকে শেখো" Personal Puzzles */}
+        <Card variant="surface" className="p-4 sm:p-5 flex flex-col justify-between space-y-3 border-l-4 border-l-[#E0A43A] shadow-card">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#B87D1B] flex items-center gap-1.5">
+                <Puzzle className="w-4 h-4" />
+                <span>{bn.home.card2Title}</span>
+              </span>
+              <Badge variant="accent" size="sm">
+                স্পেসড রিপিটিশন
+              </Badge>
+            </div>
+            <h3 className="font-bold text-base text-[#1E2420] dark:text-[#EDE8DE]">
+              {duePuzzlesCount > 0
+                ? bn.home.card2DescReady.replace('{count}', toBanglaNumeral(duePuzzlesCount))
+                : bn.home.card2DescEmpty}
+            </h3>
+            <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] leading-relaxed">
+              তোমার বাস্তব খেলার ব্লান্ডার ও ভুল চালগুলো এখানে সংরক্ষিত হয়েছে, যাতে একই ভুল দ্বিতীয়বার না হয়।
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={() => navigate('/puzzles')}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              {bn.home.card2Action}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Card 3: Suggested Opening */}
+        <Card variant="surface" className="p-4 sm:p-5 flex flex-col justify-between space-y-3 border-l-4 border-l-[#1F6F50] shadow-card">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#1F6F50] flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4" />
+                <span>{bn.home.card3Title}</span>
+              </span>
+              <Badge variant="primary" size="sm">
+                {favoriteColor === 'white' ? 'সাদা পক্ষ' : 'কালো পক্ষ'}
+              </Badge>
+            </div>
+            <h3 className="font-bold text-base text-[#1E2420] dark:text-[#EDE8DE]">
+              {suggestedOpening.nameBn}
+            </h3>
+            <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] leading-relaxed">
+              {suggestedOpening.reasonBn}
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={() => navigate('/openings')}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              {bn.home.card3Action}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Card 4: Quick Bot Game */}
+        <Card variant="surface" className="p-4 sm:p-5 flex flex-col justify-between space-y-3 border-l-4 border-l-[#1E88E5] shadow-card">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-[#1E88E5] flex items-center gap-1.5">
+                <Play className="w-4 h-4" />
+                <span>{bn.home.card4Title}</span>
+              </span>
+              <Badge variant="good" size="sm">
+                লেভেল {toBanglaNumeral(recommendedBotLevel)}
+              </Badge>
+            </div>
+            <h3 className="font-bold text-base text-[#1E2420] dark:text-[#EDE8DE]">
+              {bn.home.card4BotDesc
+                .replace('{level}', toBanglaNumeral(recommendedBotLevel))
+                .replace('{rating}', toBanglaNumeral(recommendedBotRating))}
+            </h3>
+            <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] leading-relaxed">
+              তোমার বর্তমান রেটিং ও দক্ষতার সাথে সবচেয়ে মানানসই প্রতিপক্ষের সাথে আত্মবিশ্বাস বৃদ্ধির ম্যাচ খেলো।
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              onClick={() => navigate('/play')}
+              variant="primary"
+              size="sm"
+              className="w-full shadow-xs"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              {bn.home.card4Action}
+            </Button>
+          </div>
         </Card>
       </div>
 
       {/* Last Game Banner */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-bold text-[#1E2420] flex items-center gap-2">
+      <div className="space-y-3 pt-2">
+        <h2 className="text-lg font-bold text-[#1E2420] dark:text-[#EDE8DE] flex items-center gap-2">
           <Trophy className="w-5 h-5 text-[#E0A43A]" />
           <span>{bn.home.lastGame}</span>
         </h2>
@@ -99,12 +322,12 @@ export const HomeScreen: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Badge
-                  quality={
+                  variant={
                     lastGame.result === 'win'
                       ? 'good'
                       : lastGame.result === 'loss'
-                      ? 'blunder'
-                      : 'inaccuracy'
+                      ? 'mistake'
+                      : 'accent'
                   }
                 >
                   {lastGame.result === 'win'
@@ -113,159 +336,104 @@ export const HomeScreen: React.FC = () => {
                     ? bn.home.resultLoss
                     : bn.home.resultDraw}
                 </Badge>
-                <span className="text-sm font-semibold text-[#1E2420]">
-                  বটের বিরুদ্ধে (লেভেল {toBanglaNumeral(lastGame.botLevel)})
+                <span className="text-xs text-[#6B726D]">
+                  {new Date(lastGame.date).toLocaleDateString('bn-BD', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
                 </span>
+                {lastGame.isPlacement && (
+                  <Badge variant="accent" size="sm">
+                    মূল্যায়ন ম্যাচ
+                  </Badge>
+                )}
               </div>
-              <p className="text-xs text-[#6B726D]">
-                {lastGame.resultReason} · {toBanglaNumeral(lastGame.movesCount)} চাল
-                {lastGame.accuracy > 0 && ` · নির্ভুলতা ${toBanglaNumeral(lastGame.accuracy)}%`}
+              <p className="text-xs sm:text-sm font-medium text-[#1E2420] dark:text-[#EDE8DE]">
+                বট লেভেল {toBanglaNumeral(lastGame.botLevel)} · {lastGame.resultReason} ·{' '}
+                {toBanglaNumeral(lastGame.movesCount)} চাল
               </p>
             </div>
 
             <Button
               onClick={() => navigate(`/review/${lastGame.id}`)}
-              variant="primary"
+              variant="secondary"
               size="sm"
-              leftIcon={<Sparkles className="w-4 h-4 fill-current" />}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
             >
               {bn.home.viewReview}
             </Button>
           </Card>
         ) : (
-          <EmptyState
-            title="এখনও কোনো খেলা নেই"
-            description={bn.home.noGamesYet}
-            actionLabel={bn.home.startPlayCTA}
-            onAction={() => navigate('/play')}
-          />
+          <Card variant="surface" className="p-6 text-center text-xs text-[#6B726D]">
+            {bn.home.noGamesYet}
+          </Card>
         )}
       </div>
 
-      {/* Learning & Practice Modules (Placeholders with Soon badge) */}
+      {/* Game History List */}
       <div className="space-y-3 pt-2">
-        <h2 className="text-lg font-bold text-[#1E2420]">
-          {bn.home.featuresTitle}
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Openings feature card with live progress */}
-          <Card
-            variant="surface"
-            className="hover:border-[#1F6F50]/40 hover:shadow-card transition-all p-4 sm:p-5 space-y-3 cursor-pointer group"
-            onClick={() => navigate('/openings')}
-          >
-            <div className="flex items-start justify-between">
-              <div className="p-2.5 bg-[#E6F2EC] text-[#1F6F50] rounded-xl group-hover:scale-105 transition-transform">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              {openingsProgress.completedCount > 0 ? (
-                <span className="text-xs font-semibold text-[#1F6F50] bg-[#E6F2EC] px-2.5 py-1 rounded-full border border-[#1F6F50]/20">
-                  {toBanglaNumeral(openingsProgress.completedCount)} / ৮ সম্পন্ন
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-[#1F6F50] bg-[#E6F2EC] px-2.5 py-1 rounded-full">
-                  ৮টি ওপেনিং
-                </span>
-              )}
-            </div>
-            <div>
-              <h3 className="font-bold text-[#1E2420] text-base group-hover:text-[#1F6F50] transition-colors">
-                {bn.home.featureOpenings}
-              </h3>
-              <p className="text-xs text-[#6B726D] mt-1 leading-normal">
-                {bn.home.featureOpeningsDesc}
-              </p>
-            </div>
-            {openingsProgress.completedCount > 0 && (
-              <div className="w-full bg-[#F4EFE4] h-1.5 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#1F6F50] h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(openingsProgress.completedCount / 8) * 100}%`,
-                  }}
-                />
-              </div>
-            )}
-          </Card>
-
-          {/* Tactics Puzzles feature placeholder */}
-          <Card
-            variant="surface"
-            className="opacity-80 hover:opacity-100 transition-opacity p-4 sm:p-5 space-y-3 cursor-pointer"
-            onClick={() => navigate('/puzzles')}
-          >
-            <div className="flex items-start justify-between">
-              <div className="p-2.5 bg-[#FDF6E9] text-[#B87D1B] rounded-xl">
-                <Puzzle className="w-6 h-6" />
-              </div>
-              <Badge variant="accent">
-                {bn.home.comingSoonBadge}
-              </Badge>
-            </div>
-            <div>
-              <h3 className="font-bold text-[#1E2420] text-base">
-                {bn.home.featurePuzzles}
-              </h3>
-              <p className="text-xs text-[#6B726D] mt-1 leading-normal">
-                {bn.home.featurePuzzlesDesc}
-              </p>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Recent Games History */}
-      {data.games.length > 1 && (
-        <div className="space-y-3 pt-2">
-          <h2 className="text-lg font-bold text-[#1E2420] flex items-center gap-2">
-            <History className="w-5 h-5 text-[#6B726D]" />
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#1E2420] dark:text-[#EDE8DE] flex items-center gap-2">
+            <History className="w-5 h-5 text-[#1F6F50]" />
             <span>{bn.home.gameHistory}</span>
           </h2>
+          <span className="text-xs font-mono text-[#6B726D]">
+            সর্বশেষ {toBanglaNumeral(data.games.length)} টি খেলা
+          </span>
+        </div>
 
+        {data.games.length === 0 ? (
+          <EmptyState
+            title={bn.home.emptyHistory}
+            description="বটের সাথে একটি নতুন খেলা খেলে আপনার প্রথম পর্যালোচনা তৈরি করুন।"
+            actionLabel={bn.home.card4Action}
+            onAction={() => navigate('/play')}
+          />
+        ) : (
           <div className="space-y-2">
-            {data.games.slice(1, 6).map((g) => (
-              <div
+            {data.games.map((g) => (
+              <Card
                 key={g.id}
+                variant="surface"
+                className="p-3 sm:p-4 flex items-center justify-between hover:bg-[#F4EFE4]/60 dark:hover:bg-[#1A231E]/60 transition-colors cursor-pointer"
                 onClick={() => navigate(`/review/${g.id}`)}
-                className="flex items-center justify-between p-3 bg-[#FFFDF8] hover:bg-[#F4EFE4] rounded-xl border border-[#1E2420]/10 transition-colors cursor-pointer touch-target"
               >
                 <div className="flex items-center gap-3">
-                  <Badge
-                    quality={
+                  <div
+                    className={`w-3 h-3 rounded-full ${
                       g.result === 'win'
-                        ? 'good'
+                        ? 'bg-[#43A047]'
                         : g.result === 'loss'
-                        ? 'blunder'
-                        : 'inaccuracy'
-                    }
-                  >
-                    {g.result === 'win'
-                      ? bn.home.resultWin
-                      : g.result === 'loss'
-                      ? bn.home.resultLoss
-                      : bn.home.resultDraw}
-                  </Badge>
-                  <span className="text-xs sm:text-sm font-semibold text-[#1E2420]">
-                    বট (লেভেল {toBanglaNumeral(g.botLevel)}) · {toBanglaNumeral(g.movesCount)} চাল
-                  </span>
+                        ? 'bg-[#E53935]'
+                        : 'bg-[#E0A43A]'
+                    }`}
+                  />
+                  <div>
+                    <span className="text-xs sm:text-sm font-semibold text-[#1E2420] dark:text-[#EDE8DE] block">
+                      বট লেভেল {toBanglaNumeral(g.botLevel)} ({g.userColor === 'white' ? 'সাদা' : 'কালো'})
+                    </span>
+                    <span className="text-[11px] text-[#6B726D]">
+                      {g.resultReason} · {toBanglaNumeral(g.movesCount)} চাল
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {g.accuracy > 0 && (
-                    <span className="text-xs font-mono font-medium text-[#1F6F50] bg-[#E6F2EC] px-2 py-0.5 rounded-full">
-                      {toBanglaNumeral(g.accuracy)}%
+                    <span className="text-xs font-mono font-medium text-[#1F6F50] dark:text-[#E6F2EC]">
+                      {toBanglaNumeral(g.accuracy)}% নির্ভুল
                     </span>
                   )}
-                  <span className="text-xs text-[#1F6F50] font-medium hidden sm:inline">
-                    {bn.home.viewReview} →
-                  </span>
+                  <Button variant="ghost" size="sm" className="p-1">
+                    <ArrowRight className="w-4 h-4 text-[#6B726D]" />
+                  </Button>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

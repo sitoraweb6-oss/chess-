@@ -13,13 +13,18 @@ import { OpeningsScreen } from './features/openings/OpeningsScreen.tsx';
 import { PuzzlesScreen } from './features/puzzles/PuzzlesScreen.tsx';
 import { SettingsScreen } from './features/settings/SettingsScreen.tsx';
 import { OnboardingModal } from './features/onboarding/OnboardingModal.tsx';
-import { hasCompletedOnboarding } from './storage/index.ts';
+import { hasCompletedOnboarding, getStorageData } from './storage/index.ts';
 import { stockfishEngine } from './engine/index.ts';
+import { applyAppTheme } from './utils/theme.ts';
 
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   useEffect(() => {
+    // Apply user theme
+    const data = getStorageData();
+    applyAppTheme(data.settings.appTheme);
+
     // Check if user has completed onboarding
     const completed = hasCompletedOnboarding();
     if (!completed) {
@@ -34,7 +39,8 @@ export default function App() {
 
   return (
     <HashRouter>
-      <div className="min-h-screen flex flex-col bg-[#FFFDF8] text-[#1E2420] selection:bg-[#E6F2EC] selection:text-[#1F6F50]">
+      <div className="min-h-screen flex flex-col bg-app text-app selection:bg-primary-soft selection:text-primary transition-colors duration-200">
+
         <Navbar />
 
         <main className="flex-1">
@@ -50,7 +56,7 @@ export default function App() {
           </Routes>
         </main>
 
-        <footer className="border-t border-[#1E2420]/10 py-6 text-center text-xs text-[#6B726D]">
+        <footer className="border-t border-app py-6 text-center text-xs text-muted">
           <p>© {new Date().getFullYear()} দাবা শিক্ষক (Daba Shikkhok) · আনন্দের সাথে বাংলায় দাবা শিখুন</p>
         </footer>
 

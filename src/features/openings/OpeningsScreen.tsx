@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle2, ChevronRight, ArrowLeft, Trophy } from 'lucide-react';
+import { BookOpen, CheckCircle2, ChevronRight, ArrowLeft, Trophy, Flame } from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Badge } from '../../components/ui/Badge.tsx';
 import { Button } from '../../components/ui/Button.tsx';
@@ -13,6 +13,7 @@ import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 export const OpeningsScreen: React.FC = () => {
   const [selectedOpening, setSelectedOpening] = useState<ChessOpening | null>(null);
   const [activeTab, setActiveTab] = useState<'lesson' | 'practice'>('lesson');
+  const [categoryFilter, setCategoryFilter] = useState<'opening' | 'gambit'>('opening');
   const [progressMap, setProgressMap] = useState<Record<string, OpeningProgressRecord>>({});
 
   const refreshProgress = () => {
@@ -25,6 +26,8 @@ export const OpeningsScreen: React.FC = () => {
   }, [selectedOpening]);
 
   const totalProgress = getTotalOpeningsProgress(OPENINGS_DATA.length);
+
+  const displayedList = OPENINGS_DATA.filter((o) => o.category === categoryFilter);
 
   // If an opening is selected, display detailed Lesson or Practice mode
   if (selectedOpening) {
@@ -45,27 +48,32 @@ export const OpeningsScreen: React.FC = () => {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-[#1E2420]">
+                <h1 className="text-xl sm:text-2xl font-bold text-[#1E2420] dark:text-[#EDE8DE]">
                   {selectedOpening.nameBn}
                 </h1>
                 <span className="text-xs font-mono bg-[#E6F2EC] text-[#1F6F50] px-2 py-0.5 rounded-full font-medium">
                   {selectedOpening.eco}
                 </span>
+                {selectedOpening.category === 'gambit' && (
+                  <Badge variant="accent" size="sm">
+                    গ্যাম্বিট
+                  </Badge>
+                )}
               </div>
-              <p className="text-xs text-[#6B726D] mt-0.5">
+              <p className="text-xs text-[#6B726D] dark:text-[#A0ABA4] mt-0.5">
                 {selectedOpening.name} · {selectedOpening.forColorBn} পক্ষের ওপেনিং · {selectedOpening.difficultyBn}
               </p>
             </div>
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-[#F4EFE4] rounded-xl self-start sm:self-auto border border-[#1E2420]/10">
+          <div className="flex items-center gap-1 p-1 bg-[#F4EFE4] dark:bg-[#1A231E] rounded-xl self-start sm:self-auto border border-[#1E2420]/10">
             <button
               onClick={() => setActiveTab('lesson')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-target ${
                 activeTab === 'lesson'
                   ? 'bg-[#1F6F50] text-[#FFFDF8] shadow-xs'
-                  : 'text-[#1E2420]/75 hover:text-[#1E2420]'
+                  : 'text-[#1E2420]/75 dark:text-[#EDE8DE]/75 hover:text-[#1E2420]'
               }`}
             >
               {bn.openings.lessonTab}
@@ -75,7 +83,7 @@ export const OpeningsScreen: React.FC = () => {
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-target ${
                 activeTab === 'practice'
                   ? 'bg-[#1F6F50] text-[#FFFDF8] shadow-xs'
-                  : 'text-[#1E2420]/75 hover:text-[#1E2420]'
+                  : 'text-[#1E2420]/75 dark:text-[#EDE8DE]/75 hover:text-[#1E2420]'
               }`}
             >
               {bn.openings.practiceTab}
@@ -100,22 +108,22 @@ export const OpeningsScreen: React.FC = () => {
     );
   }
 
-  // Catalog View: List of 8 Openings
+  // Catalog View: List of 11 Openings + 7 Gambits (18 Total)
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
       {/* Header and Total Progress */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#1E2420]/10">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#1E2420] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#1E2420] dark:text-[#EDE8DE] tracking-tight">
             {bn.openings.title}
           </h1>
-          <p className="text-xs sm:text-sm text-[#6B726D] mt-1 max-w-xl">
+          <p className="text-xs sm:text-sm text-[#6B726D] dark:text-[#A0ABA4] mt-1 max-w-xl">
             {bn.openings.subtitle}
           </p>
         </div>
 
         {/* Progress Card */}
-        <div className="w-full sm:w-64 bg-[#F4EFE4]/60 p-3.5 rounded-xl border border-[#1E2420]/10">
+        <div className="w-full sm:w-64 bg-[#F4EFE4]/60 dark:bg-[#1A231E] p-3.5 rounded-xl border border-[#1E2420]/10">
           <ProgressBar
             current={totalProgress.completedCount}
             total={totalProgress.totalCount}
@@ -124,9 +132,35 @@ export const OpeningsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid of 8 Openings */}
+      {/* Category Tabs: Openings vs Gambits */}
+      <div className="flex items-center gap-2 p-1 bg-[#F4EFE4] dark:bg-[#1A231E] rounded-xl max-w-sm border border-[#1E2420]/10">
+        <button
+          onClick={() => setCategoryFilter('opening')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            categoryFilter === 'opening'
+              ? 'bg-[#1F6F50] text-white shadow-xs'
+              : 'text-[#6B726D] hover:text-[#1E2420]'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>{bn.openings.openingsTab}</span>
+        </button>
+        <button
+          onClick={() => setCategoryFilter('gambit')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            categoryFilter === 'gambit'
+              ? 'bg-[#1F6F50] text-white shadow-xs'
+              : 'text-[#6B726D] hover:text-[#1E2420]'
+          }`}
+        >
+          <Flame className="w-4 h-4 text-[#E0A43A]" />
+          <span>{bn.openings.gambitsTab}</span>
+        </button>
+      </div>
+
+      {/* Grid of Openings / Gambits */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {OPENINGS_DATA.map((op) => {
+        {displayedList.map((op) => {
           const prog = progressMap[op.id];
           const isDone = prog?.completedLesson;
 
@@ -150,10 +184,10 @@ export const OpeningsScreen: React.FC = () => {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-base text-[#1E2420] group-hover:text-[#1F6F50] transition-colors">
+                    <h3 className="font-bold text-base text-[#1E2420] dark:text-[#EDE8DE] group-hover:text-[#1F6F50] transition-colors">
                       {op.nameBn}
                     </h3>
-                    <span className="text-xs text-[#6B726D] block">
+                    <span className="text-xs text-[#6B726D] dark:text-[#A0ABA4] block">
                       {op.name} · {op.eco}
                     </span>
                   </div>
@@ -170,7 +204,7 @@ export const OpeningsScreen: React.FC = () => {
                   )}
                 </div>
 
-                <p className="text-xs text-[#1E2420]/80 leading-relaxed line-clamp-2">
+                <p className="text-xs text-[#1E2420]/80 dark:text-[#EDE8DE]/80 leading-relaxed line-clamp-2">
                   {op.mainIdeaLines[0]}
                 </p>
 
@@ -178,7 +212,7 @@ export const OpeningsScreen: React.FC = () => {
                   <span className={`px-2 py-0.5 rounded-full border font-medium ${difficultyColor}`}>
                     {op.difficultyBn}
                   </span>
-                  <span className="bg-[#F4EFE4] text-[#1E2420]/80 px-2 py-0.5 rounded-full border border-[#1E2420]/10">
+                  <span className="bg-[#F4EFE4] dark:bg-[#1A231E] text-[#1E2420]/80 dark:text-[#EDE8DE]/80 px-2 py-0.5 rounded-full border border-[#1E2420]/10">
                     ঘুঁটি: {op.forColorBn}
                   </span>
                   {prog?.practiceScore ? (

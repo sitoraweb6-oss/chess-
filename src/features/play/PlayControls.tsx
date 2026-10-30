@@ -6,8 +6,9 @@ import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 export interface PlayControlsProps {
   hintsLeft: number;
   undosLeft: number;
-  isBotThinking: boolean;
-  isGameOver: boolean;
+  isBotThinking?: boolean;
+  isGameOver?: boolean;
+  isUserTurn?: boolean;
   onHint: () => void;
   onUndo: () => void;
   onResign: () => void;
@@ -17,8 +18,9 @@ export interface PlayControlsProps {
 export const PlayControls: React.FC<PlayControlsProps> = ({
   hintsLeft,
   undosLeft,
-  isBotThinking,
-  isGameOver,
+  isBotThinking = false,
+  isGameOver = false,
+  isUserTurn = true,
   onHint,
   onUndo,
   onResign,
