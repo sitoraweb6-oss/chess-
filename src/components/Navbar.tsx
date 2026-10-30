@@ -20,7 +20,7 @@ export const Navbar: React.FC = () => {
         {/* Zone 1: Single text element wordmark */}
         <Link
           to="/"
-          className="text-xl sm:text-2xl font-bold tracking-tight text-primary-themed flex items-center gap-2 whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity"
+          className="text-xl sm:text-2xl font-bold tracking-tight text-primary flex items-center gap-2 whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity"
         >
           <span className="text-2xl" aria-hidden="true">♟️</span>
           <span>{bn.appName}</span>
@@ -36,13 +36,13 @@ export const Navbar: React.FC = () => {
                 to={link.path}
                 className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors py-1 ${
                   isActive
-                    ? 'text-primary-themed font-semibold border-b-2 border-primary'
-                    : 'text-muted hover:text-primary-themed'
+                    ? 'text-primary font-semibold border-b-2 border-primary'
+                    : 'text-muted hover:text-primary'
                 }`}
               >
                 <span>{link.label}</span>
                 {link.badge && (
-                  <span className="text-[10px] bg-[#E0A43A]/15 text-[#B87D1B] font-medium px-1.5 py-0.2 rounded-full">
+                  <span className="text-[10px] bg-accent/15 text-accent font-medium px-1.5 py-0.2 rounded-full">
                     {link.badge}
                   </span>
                 )}
@@ -56,13 +56,13 @@ export const Navbar: React.FC = () => {
           <Link
             to="/settings"
             aria-label={bn.nav.settings}
-            className="p-2 text-muted hover:text-primary-themed hover:bg-surface-2 rounded-lg transition-colors touch-target flex items-center justify-center"
+            className="p-2 text-muted hover:text-primary hover:bg-surface-2 rounded-lg transition-colors touch-target flex items-center justify-center"
           >
             <SettingsIcon className="w-5 h-5" />
           </Link>
           <Link
             to="/play"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm whitespace-nowrap shrink-0 touch-target"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-fg bg-primary hover:opacity-90 rounded-xl transition-colors shadow-sm whitespace-nowrap shrink-0 touch-target"
           >
             <Play className="w-4 h-4 fill-current" />
             <span>{bn.home.startPlayCTA}</span>
@@ -74,14 +74,14 @@ export const Navbar: React.FC = () => {
           <Link
             to="/settings"
             aria-label={bn.nav.settings}
-            className="p-2 text-muted hover:text-primary-themed rounded-lg touch-target flex items-center justify-center"
+            className="p-2 text-muted hover:text-primary rounded-lg touch-target flex items-center justify-center"
           >
             <SettingsIcon className="w-5 h-5" />
           </Link>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="মেনু খুলুন"
-            className="p-2 text-app hover:bg-surface-2 rounded-lg touch-target flex items-center justify-center cursor-pointer"
+            className="p-2 text-fg hover:bg-surface-2 rounded-lg touch-target flex items-center justify-center cursor-pointer"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -100,13 +100,13 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center justify-between p-2.5 rounded-lg text-base ${
                   isActive
-                    ? 'bg-primary-soft text-primary-themed font-semibold'
-                    : 'text-app hover:bg-surface-2'
+                    ? 'bg-primary-soft text-primary font-semibold'
+                    : 'text-fg hover:bg-surface-2'
                 }`}
               >
                 <span>{link.label}</span>
                 {link.badge && (
-                  <span className="text-[10px] bg-[#E0A43A]/15 text-[#B87D1B] font-medium px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] bg-accent/15 text-accent font-medium px-2 py-0.5 rounded-full">
                     {link.badge}
                   </span>
                 )}
@@ -117,7 +117,7 @@ export const Navbar: React.FC = () => {
             <Link
               to="/play"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full flex items-center justify-center gap-2 p-3 text-base font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm touch-target"
+              className="w-full flex items-center justify-center gap-2 p-3 text-base font-semibold text-primary-fg bg-primary hover:opacity-90 rounded-xl shadow-sm touch-target"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>{bn.home.startPlayCTA}</span>

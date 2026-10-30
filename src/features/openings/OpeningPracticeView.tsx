@@ -314,10 +314,10 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
   }, [legalMoves, selectedSquare, lastMove]);
 
   const feedbackColors = {
-    neutral: 'bg-[#F4EFE4] text-[#1E2420] border-[#1E2420]/15',
-    success: 'bg-[#E8F5E9] text-[#2E7D32] border-[#43A047]/30 font-medium',
-    warning: 'bg-[#FFF8E1] text-[#C47D00] border-[#F9A825]/40 font-medium',
-    error: 'bg-[#FFEBEE] text-[#C62828] border-[#E53935]/40 font-medium',
+    neutral: 'bg-surface-2 text-fg border-border',
+    success: 'bg-success/15 text-success border-success/30 font-medium',
+    warning: 'bg-accent-soft text-accent border-accent/40 font-medium',
+    error: 'bg-danger-soft text-danger border-danger/40 font-medium',
   };
 
   return (
@@ -325,10 +325,10 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
       {/* Practice Header Info */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[#1F6F50] bg-[#E6F2EC] px-2.5 py-1 rounded-full">
+          <span className="text-xs font-semibold text-primary bg-primary-soft px-2.5 py-1 rounded-full">
             পক্ষ: {opening.forColorBn}
           </span>
-          <span className="text-xs font-mono text-[#6B726D]">
+          <span className="text-xs font-mono text-muted">
             অগ্রগতি: {toBanglaNumeral(currentPlyIndex)} / {toBanglaNumeral(opening.moves.length)}
           </span>
         </div>
@@ -370,7 +370,7 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
 
 
           {isBotThinking && (
-            <div className="flex items-center gap-2 text-xs font-medium text-[#1F6F50] animate-pulse">
+            <div className="flex items-center gap-2 text-xs font-medium text-primary animate-pulse">
               <span>প্রতিপক্ষ ভাবছে...</span>
             </div>
           )}
@@ -384,11 +384,11 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
           >
             <div className="flex items-start gap-2.5">
               {feedbackType === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-[#43A047] shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
               ) : feedbackType === 'error' || feedbackType === 'warning' ? (
-                <AlertCircle className="w-5 h-5 text-[#E53935] shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
               ) : (
-                <Sparkles className="w-5 h-5 text-[#1F6F50] shrink-0 mt-0.5" />
+                <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               )}
               <div className="space-y-1">
                 <span className="text-xs font-bold uppercase tracking-wider block opacity-80">
@@ -399,9 +399,9 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
             </div>
           </Card>
 
-          <Card variant="surface-2" className="p-4 space-y-2 border-[#1E2420]/10">
-            <h4 className="text-xs font-bold text-[#1E2420]">অনুশীলন নিয়ম:</h4>
-            <ul className="text-xs text-[#6B726D] space-y-1 list-disc list-inside">
+          <Card variant="surface-2" className="p-4 space-y-2 border-border">
+            <h4 className="text-xs font-bold text-fg">অনুশীলন নিয়ম:</h4>
+            <ul className="text-xs text-muted space-y-1 list-disc list-inside">
               <li>প্রথমবার ভুল চাল দিলে শিক্ষক চিন্তার সূত্র দেবেন।</li>
               <li>দ্বিতীয়বার ভুল হলে বোর্ডে সবুজ তীরচিহ্নে সঠিক চাল নির্দেশিত হবে।</li>
               <li>সঠিকভাবে চাল দিলে স্বয়ংক্রিয়ভাবে পরবর্তী চালে চলে যাবে।</li>
@@ -413,22 +413,22 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
       {/* Completion Modal */}
       <Modal isOpen={isPracticeComplete} onClose={() => {}} title="" maxWidth="md">
         <div className="text-center py-2 space-y-4">
-          <div className="w-16 h-16 mx-auto bg-[#E6F2EC] text-[#1F6F50] rounded-2xl flex items-center justify-center text-3xl shadow-xs">
-            <Trophy className="w-8 h-8 text-[#1F6F50]" />
+          <div className="w-16 h-16 mx-auto bg-primary-soft text-primary rounded-2xl flex items-center justify-center text-3xl shadow-xs">
+            <Trophy className="w-8 h-8 text-primary" />
           </div>
 
           <div>
-            <h3 className="text-xl font-bold text-[#1E2420]">
+            <h3 className="text-xl font-bold text-fg">
               {bn.openings.practiceSuccessTitle}
             </h3>
-            <p className="text-xs sm:text-sm text-[#6B726D] mt-1 max-w-sm mx-auto">
+            <p className="text-xs sm:text-sm text-muted mt-1 max-w-sm mx-auto">
               আপনি {opening.nameBn}-এর মূল লাইনগুলো সফলভাবে আয়ত্ত করেছেন!
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 bg-[#F4EFE4] px-4 py-2 rounded-xl border border-[#1E2420]/10">
-            <span className="text-xs text-[#6B726D]">{bn.openings.practiceScoreLabel}</span>
-            <span className="text-xl font-bold font-mono text-[#1F6F50]">
+          <div className="inline-flex items-center gap-2 bg-surface-2 px-4 py-2 rounded-xl border border-border">
+            <span className="text-xs text-muted">{bn.openings.practiceScoreLabel}</span>
+            <span className="text-xl font-bold font-mono text-primary">
               {toBanglaNumeral(finalScore)}%
             </span>
           </div>

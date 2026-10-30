@@ -33,17 +33,17 @@ export const ReviewSummary: React.FC<ReviewSummaryProps> = ({ analysis }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Accuracy badge & score */}
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-xl bg-[#1F6F50] text-[#FFFDF8] flex flex-col items-center justify-center shadow-xs shrink-0">
+          <div className="w-14 h-14 rounded-xl bg-primary text-primary-fg flex flex-col items-center justify-center shadow-xs shrink-0">
             <span className="text-lg font-bold font-mono leading-none">
               {toBanglaNumeral(accuracy)}%
             </span>
             <span className="text-[10px] opacity-80 mt-0.5">{bn.review.accuracyLabel}</span>
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-[#1E2420]">
+            <h2 className="text-base sm:text-lg font-bold text-fg">
               {bn.review.summaryTitle}
             </h2>
-            <p className="text-xs sm:text-sm text-[#6B726D] mt-0.5 leading-snug">
+            <p className="text-xs sm:text-sm text-muted mt-0.5 leading-snug">
               {encouragementText}
             </p>
           </div>

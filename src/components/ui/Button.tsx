@@ -21,17 +21,17 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseClasses =
-    'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F6F50] disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.98] cursor-pointer touch-target';
+    'inline-flex items-center justify-center font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.98] cursor-pointer touch-target';
 
   const variantClasses = {
     primary:
-      'bg-primary text-white hover:bg-primary-hover shadow-sm focus-visible:outline-primary',
+      'bg-primary text-primary-fg hover:opacity-90 shadow-sm focus-visible:outline-primary',
     secondary:
-      'bg-primary-soft text-primary-themed hover:opacity-90 border border-primary/25 focus-visible:outline-primary',
+      'bg-primary-soft text-primary hover:opacity-90 border border-border focus-visible:outline-primary',
     ghost:
-      'bg-transparent text-app hover:bg-surface-2 hover:text-primary-themed focus-visible:outline-primary',
+      'bg-transparent text-fg hover:bg-surface-2 hover:text-primary focus-visible:outline-primary',
     danger:
-      'bg-[#E53935] text-white hover:bg-[#C62828] shadow-sm focus-visible:outline-[#E53935]',
+      'bg-danger text-white hover:opacity-90 shadow-sm focus-visible:outline-danger',
   };
 
   const sizeClasses = {

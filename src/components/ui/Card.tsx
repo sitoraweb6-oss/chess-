@@ -11,9 +11,9 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantClasses = {
-    surface: 'bg-surface border border-app shadow-card text-app',
-    'surface-2': 'bg-surface-2 border border-app shadow-card text-app',
-    highlight: 'bg-primary-soft border border-primary/25 shadow-card text-app',
+    surface: 'bg-surface border border-border shadow-card text-fg',
+    'surface-2': 'bg-surface-2 border border-border shadow-card text-fg',
+    highlight: 'bg-primary-soft border border-border shadow-card text-fg',
   };
 
   return (

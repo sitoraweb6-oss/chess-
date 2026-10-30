@@ -23,17 +23,17 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
   return (
     <Card className="max-w-md mx-auto my-6 p-6 space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-[#1E2420]">{bn.play.setupTitle}</h2>
-        <p className="text-sm text-[#6B726D] mt-1">{bn.home.startPlaySub}</p>
+        <h2 className="text-2xl font-bold text-fg">{bn.play.setupTitle}</h2>
+        <p className="text-sm text-muted mt-1">{bn.home.startPlaySub}</p>
       </div>
 
       {/* Bot level slider */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label htmlFor="bot-level" className="font-semibold text-sm text-[#1E2420]">
+          <label htmlFor="bot-level" className="font-semibold text-sm text-fg">
             {bn.play.botLevel}: {toBanglaNumeral(botLevel)}
           </label>
-          <span className="text-xs font-mono font-medium text-[#1F6F50] bg-[#E6F2EC] px-2 py-0.5 rounded-full">
+          <span className="text-xs font-mono font-medium text-primary bg-primary-soft px-2 py-0.5 rounded-full">
             আনুমানিক রেটিং: {toBanglaNumeral(getBotRating(botLevel))}
           </span>
         </div>
@@ -45,9 +45,9 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
           step="1"
           value={botLevel}
           onChange={(e) => onBotLevelChange(parseInt(e.target.value, 10))}
-          className="w-full h-2 bg-[#F4EFE4] rounded-lg appearance-none cursor-pointer accent-[#1F6F50]"
+          className="w-full h-2 bg-surface-2 rounded-lg appearance-none cursor-pointer accent-primary"
         />
-        <div className="flex justify-between text-[11px] text-[#6B726D] font-mono">
+        <div className="flex justify-between text-[11px] text-muted font-mono">
           <span>লেভেল ১ (সহজ)</span>
           <span>লেভেল ৫ (মাঝারি)</span>
           <span>লেভেল ১০ (চ্যালেঞ্জ)</span>
@@ -56,7 +56,7 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
 
       {/* Color selection */}
       <div className="space-y-2">
-        <label className="font-semibold text-sm text-[#1E2420] block">
+        <label className="font-semibold text-sm text-fg block">
           {bn.play.chooseColor}
         </label>
         <div className="grid grid-cols-3 gap-2.5">
@@ -73,8 +73,8 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
                 onClick={() => onColorChange(item.id as 'white' | 'black' | 'random')}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border text-sm font-medium transition-all cursor-pointer touch-target ${
                   isSelected
-                    ? 'border-[#1F6F50] bg-[#E6F2EC] text-[#1F6F50] font-semibold shadow-xs'
-                    : 'border-[#1E2420]/15 bg-[#FFFDF8] hover:bg-[#F4EFE4] text-[#1E2420]'
+                    ? 'border-primary bg-primary-soft text-primary font-semibold shadow-xs'
+                    : 'border-border bg-surface hover:bg-surface-2 text-fg'
                 }`}
               >
                 <span className="text-2xl mb-1">{item.icon}</span>

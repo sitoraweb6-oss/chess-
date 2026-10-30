@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-primary-soft: var(--primary-soft);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
+  --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
-  --color-surface-3: var(--surface-3);
-  --color-app-text: var(--app-text);
-  --color-app-muted: var(--app-muted);
-  --color-app-border: var(--app-border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
 
   --color-quality-brilliant: #1E88E5;
   --color-quality-good: #43A047;
@@ -27,115 +29,66 @@
   --radius-pill: 9999px;
 }
 
-:root, html.theme-light {
-  --bg-page: #FFFDF8;
+/* Theme definitions */
+:root, [data-theme="light"], html[data-theme="light"] {
+  --bg: #FFFDF8;
   --surface: #FFFFFF;
   --surface-2: #F4EFE4;
-  --surface-3: #ECE4D4;
-  --app-text: #1E2420;
-  --app-muted: #6B726D;
-  --app-border: rgba(30, 36, 32, 0.1);
-  --app-border-subtle: rgba(30, 36, 32, 0.06);
+  --fg: #1E2420;
+  --muted: #5C6660;
+  --border: rgba(30, 36, 32, 0.12);
   --primary: #1F6F50;
-  --primary-hover: #17573E;
+  --primary-fg: #FFFFFF;
   --primary-soft: #E6F2EC;
-  --primary-soft-text: #1F6F50;
-  --accent: #E0A43A;
-  --accent-soft: #FDF6E9;
+  --accent: #B87D1B;
+  --danger: #D32F2F;
+  --danger-soft: #FFEBEE;
+  --success: #2E7D32;
   color-scheme: light;
 }
 
-html.theme-dark, html.dark {
-  --bg-page: #111714;
+[data-theme="dark"], html[data-theme="dark"] {
+  --bg: #111714;
   --surface: #18221D;
-  --surface-2: #212F28;
-  --surface-3: #2A3C32;
-  --app-text: #F0EDE6;
-  --app-muted: #9EABA3;
-  --app-border: rgba(240, 237, 230, 0.12);
-  --app-border-subtle: rgba(240, 237, 230, 0.08);
+  --surface-2: #222F28;
+  --fg: #EDE8DE;
+  --muted: #9EABA3;
+  --border: rgba(237, 232, 222, 0.14);
   --primary: #2EA87B;
-  --primary-hover: #38BD8B;
-  --primary-soft: #183C2D;
-  --primary-soft-text: #A7ECD2;
+  --primary-fg: #111714;
+  --primary-soft: #1B3B2F;
   --accent: #F5B84B;
-  --accent-soft: #382B14;
+  --danger: #FF5252;
+  --danger-soft: #381C1C;
+  --success: #4CAF50;
   color-scheme: dark;
 }
 
-html.theme-paper {
-  --bg-page: #F5EFEB;
+[data-theme="paper"], html[data-theme="paper"] {
+  --bg: #F5EFEB;
   --surface: #FAF6F0;
   --surface-2: #EBE2D3;
-  --surface-3: #DFD4C0;
-  --app-text: #2C221A;
-  --app-muted: #7D6F63;
-  --app-border: rgba(44, 34, 26, 0.12);
-  --app-border-subtle: rgba(44, 34, 26, 0.07);
+  --fg: #2C221A;
+  --muted: #7A6C60;
+  --border: rgba(44, 34, 26, 0.14);
   --primary: #2A664A;
-  --primary-hover: #1E4E37;
+  --primary-fg: #FAF6F0;
   --primary-soft: #E7DECE;
-  --primary-soft-text: #2A664A;
-  --accent: #C68224;
-  --accent-soft: #F2E7D3;
+  --accent: #B8751E;
+  --danger: #C62828;
+  --danger-soft: #FBE9E7;
+  --success: #2E7D32;
   color-scheme: light;
 }
 
-html {
-  background-color: var(--bg-page);
-  color: var(--app-text);
-  font-family: var(--font-sans);
-}
-
-body {
-  background-color: var(--bg-page);
-  color: var(--app-text);
+html, body {
+  background-color: var(--bg);
+  color: var(--fg);
   font-family: var(--font-sans);
   min-height: 100vh;
   margin: 0;
   padding: 0;
   transition: background-color 200ms ease, color 200ms ease;
-}
-
-/* Explicit CSS classes for complete theme safety across environments */
-.bg-app {
-  background-color: var(--bg-page);
-}
-
-.bg-surface {
-  background-color: var(--surface);
-}
-
-.bg-surface-2 {
-  background-color: var(--surface-2);
-}
-
-.bg-surface-3 {
-  background-color: var(--surface-3);
-}
-
-.bg-primary-soft {
-  background-color: var(--primary-soft);
-}
-
-.text-app {
-  color: var(--app-text);
-}
-
-.text-muted {
-  color: var(--app-muted);
-}
-
-.text-primary-themed {
-  color: var(--primary);
-}
-
-.border-app {
-  border-color: var(--app-border);
-}
-
-.border-app-subtle {
-  border-color: var(--app-border-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -149,11 +102,11 @@ body {
 
 /* Custom soft shadow */
 .shadow-soft {
-  box-shadow: 0 4px 20px -2px rgba(30, 36, 32, 0.05), 0 2px 6px -1px rgba(30, 36, 32, 0.03);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
 .shadow-card {
-  box-shadow: 0 2px 10px rgba(30, 36, 32, 0.04), 0 1px 3px rgba(30, 36, 32, 0.02);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 /* Tap target utility */

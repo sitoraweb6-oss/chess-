@@ -17,7 +17,7 @@ export const Badge: React.FC<BadgeProps> = ({
   className = '',
   ...props
 }) => {
-  let styleClasses = 'bg-surface-2 text-app border border-app';
+  let styleClasses = 'bg-surface-2 text-fg border border-border';
 
   const effectiveQuality = quality || (variant === 'good' || variant === 'mistake' || variant === 'blunder' ? variant : undefined);
 
@@ -40,9 +40,9 @@ export const Badge: React.FC<BadgeProps> = ({
         break;
     }
   } else if (variant === 'accent') {
-    styleClasses = 'bg-accent-soft text-accent border border-accent/30 font-medium';
+    styleClasses = 'bg-surface-2 text-accent border border-accent/30 font-medium';
   } else if (variant === 'primary') {
-    styleClasses = 'bg-primary-soft text-primary-themed border border-primary/30 font-medium';
+    styleClasses = 'bg-primary-soft text-primary border border-primary/30 font-medium';
   }
 
   const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs';

@@ -20,7 +20,7 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
   if (!move) {
     return (
       <Card variant="surface-2" className="p-4 text-center">
-        <p className="text-sm text-[#6B726D]">{bn.review.noMovesToReview}</p>
+        <p className="text-sm text-muted">{bn.review.noMovesToReview}</p>
       </Card>
     );
   }
@@ -35,14 +35,14 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
     : null;
 
   return (
-    <Card variant="surface" className="p-4 sm:p-5 space-y-3 border-[#1E2420]/15">
+    <Card variant="surface" className="p-4 sm:p-5 space-y-3 border-border">
       {/* Header: Move SAN + Quality Badge */}
-      <div className="flex items-center justify-between gap-3 pb-2 border-b border-[#1E2420]/10">
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-medium text-[#6B726D]">
+          <span className="text-xs font-mono font-medium text-muted">
             {move.isUser ? 'তোমার চাল:' : 'প্রতিপক্ষের চাল:'}
           </span>
-          <span className="text-base font-bold font-mono text-[#1E2420]">
+          <span className="text-base font-bold font-mono text-fg">
             {move.san}
           </span>
         </div>
@@ -56,21 +56,21 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
 
       {/* Teacher Explanation Prose */}
       <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-[#1F6F50]">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
           <Sparkles className="w-3.5 h-3.5 fill-current" />
           <span>{bn.review.teacherSaid}</span>
         </div>
-        <p className="text-sm text-[#1E2420] leading-relaxed">
+        <p className="text-sm text-fg leading-relaxed">
           {move.explanation || 'এই চালটি সঠিক গতিশীলতা বজায় রেখেছে।'}
         </p>
       </div>
 
       {/* Action for mistakes: "সঠিক চালটা দেখাও" */}
       {isMistake && move.evalBefore?.bestMove && (
-        <div className="pt-2 flex items-center justify-between gap-3 border-t border-[#1E2420]/10">
-          <div className="text-xs text-[#6B726D]">
+        <div className="pt-2 flex items-center justify-between gap-3 border-t border-border">
+          <div className="text-xs text-muted">
             <span>{bn.review.bestMove}: </span>
-            <span className="font-mono font-semibold text-[#1F6F50]">
+            <span className="font-mono font-semibold text-primary">
               {move.bestMoveSan || move.evalBefore.bestMove}
             </span>
           </div>
@@ -80,7 +80,7 @@ export const ExplanationCard: React.FC<ExplanationCardProps> = ({
             isLoading={isPlayingLine}
             variant="secondary"
             size="sm"
-            leftIcon={<PlayCircle className="w-4 h-4 text-[#1F6F50]" />}
+            leftIcon={<PlayCircle className="w-4 h-4 text-primary" />}
           >
             {isPlayingLine ? bn.review.showingLine : bn.review.showBestLine}
           </Button>

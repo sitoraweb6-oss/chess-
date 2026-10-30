@@ -31,7 +31,7 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
       maxWidth="sm"
     >
       <div className="py-2 text-center">
-        <p className="text-sm text-[#6B726D] mb-4">
+        <p className="text-sm text-muted mb-4">
           {bn.play.promotion.choosePiece}
         </p>
 
@@ -40,12 +40,12 @@ export const PromotionModal: React.FC<PromotionModalProps> = ({
             <button
               key={p.type}
               onClick={() => onSelect(p.type)}
-              className="flex flex-col items-center justify-center p-3.5 bg-[#F4EFE4] hover:bg-[#E6F2EC] hover:border-[#1F6F50] border border-[#1E2420]/15 rounded-xl transition-all cursor-pointer touch-target group"
+              className="flex flex-col items-center justify-center p-3.5 bg-surface-2 hover:bg-primary-soft hover:border-primary border border-border rounded-xl transition-all cursor-pointer touch-target group"
             >
               <span className="text-4xl mb-1 group-hover:scale-110 transition-transform">
                 {p.symbol}
               </span>
-              <span className="text-sm font-semibold text-[#1E2420] group-hover:text-[#1F6F50]">
+              <span className="text-sm font-semibold text-fg group-hover:text-primary">
                 {PIECE_NAMES[p.type]}
               </span>
             </button>

@@ -64,6 +64,8 @@ export function getCustomBoardStyles(theme: UserSettings['boardTheme']) {
 export function applyAppTheme(appTheme: UserSettings['appTheme']): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
+  root.setAttribute('data-theme', appTheme || 'light');
+  root.style.colorScheme = appTheme === 'dark' ? 'dark' : 'light';
   root.classList.remove('theme-light', 'theme-dark', 'theme-paper', 'dark');
   root.classList.add(`theme-${appTheme}`);
   if (appTheme === 'dark') {

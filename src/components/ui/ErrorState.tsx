@@ -21,17 +21,17 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <div
       role="alert"
-      className="flex flex-col items-center justify-center p-6 text-center bg-[#FFEBEE]/60 rounded-xl border border-[#E53935]/25 my-4"
+      className="flex flex-col items-center justify-center p-6 text-center bg-danger-soft rounded-xl border border-danger/30 my-4"
     >
-      <div className="p-3 mb-3 text-[#E53935] bg-[#FFCDD2]/60 rounded-full">
+      <div className="p-3 mb-3 text-danger bg-danger/15 rounded-full">
         <AlertTriangle className="w-6 h-6" />
       </div>
-      <h3 className="text-lg font-bold text-[#C62828] mb-1">{title}</h3>
-      <p className="text-sm text-[#1E2420]/80 max-w-sm mb-3 leading-relaxed">{message}</p>
+      <h3 className="text-lg font-bold text-danger mb-1">{title}</h3>
+      <p className="text-sm text-fg/90 max-w-sm mb-3 leading-relaxed">{message}</p>
 
       {technicalDetails && (
-        <div className="w-full max-w-md bg-white/80 p-2.5 rounded-lg border border-[#E53935]/20 text-left mb-4 text-xs font-mono text-[#C62828] break-all select-all">
-          <span className="font-bold block text-[10px] text-[#6B726D] uppercase mb-0.5">
+        <div className="w-full max-w-md bg-surface p-2.5 rounded-lg border border-danger/30 text-left mb-4 text-xs font-mono text-danger break-all select-all">
+          <span className="font-bold block text-[10px] text-muted uppercase mb-0.5">
             কারিগরি কারণ (Technical reason):
           </span>
           {technicalDetails}

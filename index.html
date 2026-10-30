@@ -20,23 +20,22 @@
           if (raw) {
             var data = JSON.parse(raw);
             var theme = data && data.settings && data.settings.appTheme;
-            if (theme === 'dark') {
-              document.documentElement.classList.add('theme-dark', 'dark');
-            } else if (theme === 'paper') {
-              document.documentElement.classList.add('theme-paper');
-            } else {
-              document.documentElement.classList.add('theme-light');
+            if (theme === 'dark' || theme === 'paper' || theme === 'light') {
+              document.documentElement.setAttribute('data-theme', theme);
+              document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+              document.documentElement.classList.add('theme-' + theme);
+              if (theme === 'dark') document.documentElement.classList.add('dark');
+              return;
             }
-          } else {
-            document.documentElement.classList.add('theme-light');
           }
-        } catch (e) {
-          document.documentElement.classList.add('theme-light');
-        }
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.style.colorScheme = 'light';
+        document.documentElement.classList.add('theme-light');
       })();
     </script>
   </head>
-  <body class="bg-app text-app antialiased selection:bg-primary-soft selection:text-primary">
+  <body class="antialiased selection:bg-primary-soft selection:text-primary">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

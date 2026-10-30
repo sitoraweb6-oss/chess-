@@ -32,22 +32,22 @@ export const CapturedBar: React.FC<CapturedBarProps> = ({
     <div
       className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
         isTurn
-          ? 'bg-[#E6F2EC] border border-[#1F6F50]/30 shadow-xs'
-          : 'bg-[#F4EFE4]/60 border border-transparent'
+          ? 'bg-primary-soft border border-primary/30 shadow-xs'
+          : 'bg-surface-2/60 border border-transparent'
       }`}
     >
       <div className="flex items-center gap-2">
         <span
           className={`w-3 h-3 rounded-full border ${
             color === 'white'
-              ? 'bg-[#FFFDF8] border-[#1E2420]/40'
-              : 'bg-[#1E2420] border-[#1E2420]'
+              ? 'bg-surface border-fg/40'
+              : 'bg-fg border-fg'
           }`}
           aria-hidden="true"
         />
-        <span className="text-sm font-semibold text-[#1E2420]">{playerName}</span>
+        <span className="text-sm font-semibold text-fg">{playerName}</span>
         {isThinking && (
-          <span className="text-xs text-[#1F6F50] animate-pulse font-medium">
+          <span className="text-xs text-primary animate-pulse font-medium">
             (ভাবছে...)
           </span>
         )}
@@ -55,7 +55,7 @@ export const CapturedBar: React.FC<CapturedBarProps> = ({
 
       <div className="flex items-center gap-2">
         {/* Captured piece glyphs */}
-        <div className="flex items-center text-sm tracking-tight text-[#1E2420]/80">
+        <div className="flex items-center text-sm tracking-tight text-fg/80">
           {capturedPieces.map((piece, idx) => (
             <span key={idx} className="inline-block select-none -ml-0.5 first:ml-0">
               {color === 'white' ? PIECE_UNICODE[piece].black : PIECE_UNICODE[piece].white}
@@ -65,7 +65,7 @@ export const CapturedBar: React.FC<CapturedBarProps> = ({
 
         {/* Advantage score */}
         {advantage > 0 && (
-          <span className="text-xs font-mono font-bold text-[#1F6F50] bg-[#FFFDF8] px-1.5 py-0.5 rounded border border-[#1F6F50]/20">
+          <span className="text-xs font-mono font-bold text-primary bg-surface px-1.5 py-0.5 rounded border border-primary/20">
             +{toBanglaNumeral(advantage)}
           </span>
         )}

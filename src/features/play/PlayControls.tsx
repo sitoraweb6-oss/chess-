@@ -35,7 +35,7 @@ export const PlayControls: React.FC<PlayControlsProps> = ({
         size="sm"
         className="flex-col py-2 px-1 text-xs gap-1 min-h-[52px]"
       >
-        <Lightbulb className="w-4 h-4 text-[#E0A43A]" />
+        <Lightbulb className="w-4 h-4 text-accent" />
         <span>{bn.play.controls.hint} ({toBanglaNumeral(hintsLeft)})</span>
       </Button>
 
@@ -46,7 +46,7 @@ export const PlayControls: React.FC<PlayControlsProps> = ({
         size="sm"
         className="flex-col py-2 px-1 text-xs gap-1 min-h-[52px]"
       >
-        <Undo2 className="w-4 h-4 text-[#1F6F50]" />
+        <Undo2 className="w-4 h-4 text-primary" />
         <span>{bn.play.controls.undo} ({toBanglaNumeral(undosLeft)})</span>
       </Button>
 
@@ -55,7 +55,7 @@ export const PlayControls: React.FC<PlayControlsProps> = ({
         disabled={isGameOver || isBotThinking}
         variant="ghost"
         size="sm"
-        className="flex-col py-2 px-1 text-xs gap-1 min-h-[52px] text-[#E53935] hover:bg-[#FFEBEE]"
+        className="flex-col py-2 px-1 text-xs gap-1 min-h-[52px] text-danger hover:bg-danger-soft"
       >
         <Flag className="w-4 h-4" />
         <span>{bn.play.controls.resign}</span>

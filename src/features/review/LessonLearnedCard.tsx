@@ -24,14 +24,14 @@ export const LessonLearnedCard: React.FC<LessonLearnedCardProps> = ({
 
   if (!criticalMove) {
     return (
-      <Card variant="highlight" className="p-4 sm:p-5 text-center space-y-2 border border-[#1F6F50]/20">
+      <Card variant="highlight" className="p-4 sm:p-5 text-center space-y-2 border border-primary/20">
         <div className="flex items-center justify-center gap-2">
           <span className="text-xl">🌟</span>
-          <h3 className="font-bold text-sm sm:text-base text-[#1F6F50]">
+          <h3 className="font-bold text-sm sm:text-base text-primary">
             {bn.review.lessonLearnedTitle}
           </h3>
         </div>
-        <p className="text-xs sm:text-sm text-[#6B726D] max-w-lg mx-auto">
+        <p className="text-xs sm:text-sm text-muted max-w-lg mx-auto">
           {bn.review.noMajorBlunderMessage}
         </p>
       </Card>
@@ -55,17 +55,17 @@ export const LessonLearnedCard: React.FC<LessonLearnedCardProps> = ({
   }
 
   return (
-    <Card variant="surface-2" className="p-4 sm:p-5 space-y-4 border border-[#1F6F50]/25 shadow-soft">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#1E2420]/10">
+    <Card variant="surface-2" className="p-4 sm:p-5 space-y-4 border border-primary/25 shadow-soft">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-[#E6F2EC] text-[#1F6F50]">
+          <div className="p-1.5 rounded-lg bg-primary-soft text-primary">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-sm sm:text-base text-[#1E2420] dark:text-[#EDE8DE]">
+            <h3 className="font-bold text-sm sm:text-base text-fg">
               {bn.review.lessonLearnedTitle}
             </h3>
-            <p className="text-xs text-[#6B726D]">
+            <p className="text-xs text-muted">
               {bn.review.lessonLearnedSubtitle}
             </p>
           </div>
@@ -80,7 +80,7 @@ export const LessonLearnedCard: React.FC<LessonLearnedCardProps> = ({
         {/* Mini Chessboard */}
         <div className="md:col-span-5 flex justify-center">
           <div
-            className="w-[200px] h-[200px] sm:w-[220px] sm:h-[220px] rounded-xl overflow-hidden shadow-card border border-[#1E2420]/15"
+            className="w-[200px] h-[200px] sm:w-[220px] sm:h-[220px] rounded-xl overflow-hidden shadow-card border border-border"
             style={{ backgroundColor: boardThemeColors.light }}
           >
             <Chessboard
@@ -101,34 +101,34 @@ export const LessonLearnedCard: React.FC<LessonLearnedCardProps> = ({
         <div className="md:col-span-7 space-y-3">
           <div className="grid grid-cols-2 gap-2 text-xs">
             {/* Played move */}
-            <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 space-y-1">
-              <span className="text-[11px] font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
+            <div className="p-2.5 rounded-xl bg-danger-soft border border-danger/30 space-y-1">
+              <span className="text-[11px] font-medium text-danger flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span>{bn.review.youPlayedLabel}</span>
               </span>
-              <span className="font-bold font-mono text-sm text-[#1E2420] dark:text-[#EDE8DE] block">
+              <span className="font-bold font-mono text-sm text-fg block">
                 {criticalMove.san}
               </span>
             </div>
 
             {/* Best move */}
-            <div className="p-2.5 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/40 space-y-1">
-              <span className="text-[11px] font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
+            <div className="p-2.5 rounded-xl bg-success/15 border border-success/30 space-y-1">
+              <span className="text-[11px] font-medium text-success flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{bn.review.shouldHavePlayedLabel}</span>
               </span>
-              <span className="font-bold font-mono text-sm text-[#1E2420] dark:text-[#EDE8DE] block">
+              <span className="font-bold font-mono text-sm text-fg block">
                 {criticalMove.bestMoveSan || 'সঠিক চাল'}
               </span>
             </div>
           </div>
 
           {/* Teacher Explanation */}
-          <div className="p-3 rounded-xl bg-white dark:bg-[#1A231E] border border-[#1E2420]/10 text-xs leading-relaxed space-y-1">
-            <span className="font-semibold text-[#1F6F50] block">
+          <div className="p-3 rounded-xl bg-surface border border-border text-xs leading-relaxed space-y-1">
+            <span className="font-semibold text-primary block">
               {bn.review.whyExplanationLabel}
             </span>
-            <p className="text-[#1E2420] dark:text-[#EDE8DE]">
+            <p className="text-fg">
               {criticalMove.explanation || 'এই পজিশনে প্রতিপক্ষের আক্রমণের মুখে সঠিক ঘরে যাওয়া বেশি নিরাপদ ছিল।'}
             </p>
           </div>

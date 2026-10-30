@@ -785,11 +785,11 @@ export const PlayScreen: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto px-4 py-6">
         {isPlacementGame && (
-          <div className="mb-4 p-4 rounded-xl bg-[#E6F2EC] dark:bg-[#1F6F50]/20 border border-[#1F6F50]/30 text-center">
+          <div className="mb-4 p-4 rounded-xl bg-primary-soft border border-primary/30 text-center">
             <Badge variant="primary" className="mb-1">
               {bn.play.placementModeTitle}
             </Badge>
-            <p className="text-xs text-[#1F6F50] dark:text-[#E6F2EC] font-medium">
+            <p className="text-xs text-primary font-medium">
               {bn.play.placementModeSubtitle}
             </p>
           </div>
@@ -837,7 +837,7 @@ export const PlayScreen: React.FC = () => {
     <div className="max-w-2xl mx-auto px-3 sm:px-6 py-4 space-y-3">
       {/* Top Banner if Placement Mode */}
       {isPlacementGame && (
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#E6F2EC] dark:bg-[#1F6F50]/20 text-xs text-[#1F6F50] dark:text-[#E6F2EC]">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-primary-soft text-xs text-primary">
           <span className="font-semibold flex items-center gap-1.5">
             🎯 <span>{bn.play.placementModeTitle}</span>
           </span>
@@ -915,17 +915,17 @@ export const PlayScreen: React.FC = () => {
         title={bn.play.resignConfirmTitle}
       >
         <div className="space-y-4">
-          <p className="text-sm text-[#6B726D]">{bn.play.resignConfirmDesc}</p>
+          <p className="text-sm text-muted">{bn.play.resignConfirmDesc}</p>
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowResignModal(false)}
-              className="px-4 py-2 text-sm rounded-lg hover:bg-[#1E2420]/10 transition-colors"
+              className="px-4 py-2 text-sm rounded-lg hover:bg-surface-2 text-fg transition-colors"
             >
               {bn.play.resignNo}
             </button>
             <button
               onClick={handleResign}
-              className="px-4 py-2 text-sm rounded-lg bg-[#E53935] text-white hover:bg-[#D32F2F] transition-colors"
+              className="px-4 py-2 text-sm rounded-lg bg-danger text-white hover:bg-danger/90 transition-colors"
             >
               {bn.play.resignYes}
             </button>
@@ -940,11 +940,11 @@ export const PlayScreen: React.FC = () => {
         title={bn.play.newGameConfirmTitle}
       >
         <div className="space-y-4">
-          <p className="text-sm text-[#6B726D]">{bn.play.newGameConfirmDesc}</p>
+          <p className="text-sm text-muted">{bn.play.newGameConfirmDesc}</p>
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => setShowNewGameModal(false)}
-              className="px-4 py-2 text-sm rounded-lg hover:bg-[#1E2420]/10 transition-colors"
+              className="px-4 py-2 text-sm rounded-lg hover:bg-surface-2 text-fg transition-colors"
             >
               {bn.play.newGameNo}
             </button>
@@ -954,7 +954,7 @@ export const PlayScreen: React.FC = () => {
                 clearActiveGame();
                 setIsPlaying(false);
               }}
-              className="px-4 py-2 text-sm rounded-lg bg-[#1F6F50] text-white hover:bg-[#17573E] transition-colors"
+              className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-fg hover:bg-primary/90 transition-colors"
             >
               {bn.play.newGameYes}
             </button>

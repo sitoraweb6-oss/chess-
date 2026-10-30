@@ -191,16 +191,16 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
     <div className="space-y-6">
       {/* Lesson Complete Alert Card */}
       {isLessonCompleted && !activeTrap && !activeVariation && (
-        <Card variant="highlight" className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3 border border-[#1F6F50]/20">
+        <Card variant="highlight" className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3 border border-primary/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#E6F2EC] text-[#1F6F50] flex items-center justify-center shrink-0">
-              <Trophy className="w-5 h-5 text-[#E0A43A]" />
+            <div className="w-10 h-10 rounded-full bg-primary-soft text-primary flex items-center justify-center shrink-0">
+              <Trophy className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-[#1F6F50]">
+              <h4 className="font-bold text-sm text-primary">
                 {bn.openings.lessonCompleteTitle}
               </h4>
-              <p className="text-xs text-[#6B726D]">
+              <p className="text-xs text-muted">
                 {bn.openings.lessonCompleteDesc}
               </p>
             </div>
@@ -223,7 +223,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
         <div className="lg:col-span-7 flex flex-col items-center space-y-3">
           {/* Active Mode Notice */}
           {activeTrap && (
-            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 text-xs text-red-700 dark:text-red-400 border border-red-200">
+            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-danger-soft text-xs text-danger border border-danger/30">
               <span className="font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4" />
                 <span>ফাঁদ: {activeTrap.nameBn}</span>
@@ -238,7 +238,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
           )}
 
           {activeVariation && (
-            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-xs text-blue-700 dark:text-blue-400 border border-blue-200">
+            <div className="w-full max-w-[420px] flex items-center justify-between px-3 py-1.5 rounded-lg bg-primary-soft text-xs text-primary border border-primary/30">
               <span className="font-bold flex items-center gap-1.5">
                 <GitBranch className="w-4 h-4" />
                 <span>ভ্যারিয়েশন: {activeVariation.nameBn}</span>
@@ -296,7 +296,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
               >
                 পূর্ববর্তী
               </Button>
-              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+              <span className="text-xs font-mono text-muted px-2 select-none">
                 চাল {toBanglaNumeral(currentStepIndex)} / {toBanglaNumeral(opening.moves.length)}
               </span>
               <Button
@@ -334,7 +334,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
               >
                 পূর্ববর্তী
               </Button>
-              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+              <span className="text-xs font-mono text-muted px-2 select-none">
                 {toBanglaNumeral(trapStepIndex)} / {toBanglaNumeral(activeTrap.movesSan.length)}
               </span>
               <Button
@@ -363,7 +363,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
               >
                 পূর্ববর্তী
               </Button>
-              <span className="text-xs font-mono text-[#6B726D] px-2 select-none">
+              <span className="text-xs font-mono text-muted px-2 select-none">
                 {toBanglaNumeral(variationStepIndex)} / {toBanglaNumeral(activeVariation.movesSan.length)}
               </span>
               <Button
@@ -383,18 +383,18 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
         {/* Right: "কেন এই চাল?" & Explanation Panel */}
         <div className="lg:col-span-5 space-y-4">
           {/* Main Idea Card */}
-          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-[#1F6F50]">
-            <span className="text-xs font-semibold text-[#1F6F50] flex items-center gap-1.5">
+          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-primary">
+            <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
               <Sparkles className="w-4 h-4" />
               <span>{bn.openings.mainIdeaTitle}</span>
             </span>
-            <ul className="space-y-1.5 text-xs text-[#1E2420] dark:text-[#EDE8DE] leading-relaxed">
+            <ul className="space-y-1.5 text-xs text-fg leading-relaxed">
               <li className="flex items-start gap-1.5">
-                <span className="text-[#1F6F50] font-bold">•</span>
+                <span className="text-primary font-bold">•</span>
                 <span>{opening.mainIdeaLines[0]}</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <span className="text-[#1F6F50] font-bold">•</span>
+                <span className="text-primary font-bold">•</span>
                 <span>{opening.mainIdeaLines[1]}</span>
               </li>
             </ul>
@@ -402,18 +402,18 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
 
           {/* Current Move "কেন এই চাল?" */}
           {!activeTrap && !activeVariation && (
-            <Card variant="surface-2" className="p-4 space-y-2 border border-[#1E2420]/10">
-              <div className="flex items-center justify-between pb-1.5 border-b border-[#1E2420]/10">
-                <span className="text-xs font-bold text-[#1E2420] dark:text-[#EDE8DE]">
+            <Card variant="surface-2" className="p-4 space-y-2 border border-border">
+              <div className="flex items-center justify-between pb-1.5 border-b border-border">
+                <span className="text-xs font-bold text-fg">
                   {bn.openings.whyThisMove}
                 </span>
                 {currentMoveDetail && (
-                  <span className="font-mono font-bold text-sm px-2 py-0.5 rounded-md bg-[#1F6F50] text-white">
+                  <span className="font-mono font-bold text-sm px-2 py-0.5 rounded-md bg-primary text-primary-fg">
                     {currentMoveDetail.san}
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-[#1E2420] dark:text-[#EDE8DE] leading-relaxed">
+              <p className="text-xs sm:text-sm text-fg leading-relaxed">
                 {currentMoveDetail
                   ? currentMoveDetail.explanationBn
                   : 'বোর্ডের শুরুতে উভয় পক্ষের প্রাথমিক সৈন্য ও ঘুঁটিগুলো তাদের মূল অবস্থানে রয়েছে। পরবর্তী বোতামে চাপ দিয়ে চালগুলো দেখুন।'}
@@ -423,36 +423,36 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
 
           {/* Gambit Details: Sacrifice, Compensation & Refutation */}
           {opening.gambitDetails && (
-            <Card variant="surface" className="p-4 space-y-3 border-l-4 border-l-[#E0A43A]">
-              <span className="text-xs font-bold text-[#B87D1B] flex items-center gap-1.5">
+            <Card variant="surface" className="p-4 space-y-3 border-l-4 border-l-accent">
+              <span className="text-xs font-bold text-accent flex items-center gap-1.5">
                 <ShieldAlert className="w-4 h-4" />
                 <span>গ্যাম্বিট বিশ্লেষণ ও কৌশল</span>
               </span>
 
               <div className="space-y-2 text-xs leading-relaxed">
                 <div>
-                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#B87D1B]">
+                  <span className="font-semibold text-fg block text-[11px] text-accent">
                     {bn.openings.gambitSacrificeTitle}
                   </span>
-                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                  <p className="text-muted">
                     {opening.gambitDetails.sacrificeBn}
                   </p>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#1F6F50]">
+                  <span className="font-semibold text-fg block text-[11px] text-primary">
                     {bn.openings.gambitCompensationTitle}
                   </span>
-                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                  <p className="text-muted">
                     {opening.gambitDetails.compensationBn}
                   </p>
                 </div>
 
                 <div>
-                  <span className="font-semibold text-[#1E2420] dark:text-[#EDE8DE] block text-[11px] text-[#E53935]">
+                  <span className="font-semibold text-fg block text-[11px] text-danger">
                     {bn.openings.gambitRefutationTitle}
                   </span>
-                  <p className="text-[#6B726D] dark:text-[#A0ABA4]">
+                  <p className="text-muted">
                     {opening.gambitDetails.refutationBn}
                   </p>
                 </div>
@@ -462,11 +462,11 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
 
           {/* Middlegame 3 Plans */}
           <Card variant="surface" className="p-4 space-y-2">
-            <span className="text-xs font-semibold text-[#1F6F50] flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
               <Lightbulb className="w-4 h-4" />
               <span>{bn.openings.middlegamePlansTitle}</span>
             </span>
-            <ul className="space-y-1.5 text-xs text-[#6B726D] dark:text-[#A0ABA4] list-disc list-inside">
+            <ul className="space-y-1.5 text-xs text-muted list-disc list-inside">
               <li>{opening.middlegamePlans[0]}</li>
               <li>{opening.middlegamePlans[1]}</li>
               <li>{opening.middlegamePlans[2]}</li>
@@ -474,12 +474,12 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
           </Card>
 
           {/* Typical Beginner Mistakes */}
-          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-[#FB8C00]">
-            <span className="text-xs font-semibold text-[#FB8C00] flex items-center gap-1.5">
+          <Card variant="surface" className="p-4 space-y-2 border-l-4 border-l-accent">
+            <span className="text-xs font-semibold text-accent flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4" />
               <span>{bn.openings.typicalMistakesTitle}</span>
             </span>
-            <ul className="space-y-1 text-xs text-[#6B726D] dark:text-[#A0ABA4] list-disc list-inside">
+            <ul className="space-y-1 text-xs text-muted list-disc list-inside">
               <li>{opening.typicalMistakes[0]}</li>
               <li>{opening.typicalMistakes[1]}</li>
             </ul>
@@ -488,7 +488,7 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
           {/* Variations Section */}
           {opening.variations && opening.variations.length > 0 && (
             <Card variant="surface" className="p-4 space-y-2.5">
-              <span className="text-xs font-semibold text-[#1E88E5] flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
                 <GitBranch className="w-4 h-4" />
                 <span>{bn.openings.variationsTab}</span>
               </span>
@@ -501,15 +501,15 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
                       setActiveTrap(null);
                       setVariationStepIndex(0);
                     }}
-                    className="p-2.5 rounded-lg border border-[#1E2420]/10 hover:border-[#1E88E5] transition-colors cursor-pointer bg-white dark:bg-[#1A231E]"
+                    className="p-2.5 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer bg-surface"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-[#1E2420] dark:text-[#EDE8DE]">
+                      <span className="font-bold text-xs text-fg">
                         {v.nameBn}
                       </span>
-                      <span className="text-[10px] text-[#1E88E5] font-semibold">লাইন দেখুন</span>
+                      <span className="text-[10px] text-primary font-semibold">লাইন দেখুন</span>
                     </div>
-                    <p className="text-[11px] text-[#6B726D] mt-0.5">{v.descriptionBn}</p>
+                    <p className="text-[11px] text-muted mt-0.5">{v.descriptionBn}</p>
                   </div>
                 ))}
               </div>
@@ -517,12 +517,12 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
           )}
 
           {/* Traps Section */}
-          <Card variant="surface" className="p-4 space-y-2.5 border-l-4 border-l-[#E53935]">
-            <span className="text-xs font-semibold text-[#E53935] flex items-center gap-1.5">
+          <Card variant="surface" className="p-4 space-y-2.5 border-l-4 border-l-danger">
+            <span className="text-xs font-semibold text-danger flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4" />
               <span>{bn.openings.trapsTitle}</span>
             </span>
-            <p className="text-xs text-[#6B726D]">{bn.openings.trapsDesc}</p>
+            <p className="text-xs text-muted">{bn.openings.trapsDesc}</p>
             <div className="space-y-2">
               {opening.traps.map((t) => (
                 <div
@@ -532,15 +532,15 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
                     setActiveVariation(null);
                     setTrapStepIndex(0);
                   }}
-                  className="p-2.5 rounded-lg border border-red-200 hover:border-red-400 transition-colors cursor-pointer bg-red-50/50 dark:bg-red-950/20"
+                  className="p-2.5 rounded-lg border border-danger/30 hover:border-danger transition-colors cursor-pointer bg-danger-soft/50"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-red-800 dark:text-red-300">
+                    <span className="font-bold text-xs text-danger">
                       {t.nameBn}
                     </span>
-                    <span className="text-[10px] text-red-600 font-semibold">{bn.openings.viewTrapLine}</span>
+                    <span className="text-[10px] text-danger font-semibold">{bn.openings.viewTrapLine}</span>
                   </div>
-                  <p className="text-[11px] text-[#6B726D] mt-0.5">{t.descriptionBn}</p>
+                  <p className="text-[11px] text-muted mt-0.5">{t.descriptionBn}</p>
                 </div>
               ))}
             </div>

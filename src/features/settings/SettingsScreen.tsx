@@ -403,10 +403,10 @@ export const SettingsScreen: React.FC = () => {
       </Card>
 
       {/* Danger Zone: Reset All Storage */}
-      <Card variant="surface" className="p-4 sm:p-5 border-[#E53935]/20 space-y-3">
+      <Card variant="surface" className="p-4 sm:p-5 border-danger/20 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-[#E53935] flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-danger flex items-center gap-1.5">
               <Trash2 className="w-4 h-4" />
               <span>{bn.settings.dangerZone}</span>
             </h3>
@@ -442,7 +442,7 @@ export const SettingsScreen: React.FC = () => {
             </button>
             <button
               onClick={handleResetData}
-              className="px-4 py-2 text-sm font-semibold text-white bg-[#E53935] hover:bg-[#C62828] rounded-xl cursor-pointer touch-target"
+              className="px-4 py-2 text-sm font-semibold text-white bg-danger hover:bg-danger/90 rounded-xl cursor-pointer touch-target"
             >
               {bn.settings.resetBtn}
             </button>
