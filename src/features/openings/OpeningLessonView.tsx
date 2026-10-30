@@ -50,16 +50,20 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
     positions.push({ fen: chess.fen() }); // initial position
 
     for (const m of opening.moves) {
-      const moveRes = chess.move(m.san);
-      if (moveRes) {
-        positions.push({
-          fen: chess.fen(),
-          lastMoveArrow: {
-            startSquare: moveRes.from,
-            endSquare: moveRes.to,
-            color: '#1F6F50',
-          },
-        });
+      try {
+        const moveRes = chess.move(m.san);
+        if (moveRes) {
+          positions.push({
+            fen: chess.fen(),
+            lastMoveArrow: {
+              startSquare: moveRes.from,
+              endSquare: moveRes.to,
+              color: '#1F6F50',
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('Error applying move in lesson view:', err);
       }
     }
     return positions;
@@ -73,16 +77,20 @@ export const OpeningLessonView: React.FC<OpeningLessonViewProps> = ({
     positions.push({ fen: chess.fen() });
 
     for (const san of activeTrap.movesSan) {
-      const moveRes = chess.move(san);
-      if (moveRes) {
-        positions.push({
-          fen: chess.fen(),
-          lastMoveArrow: {
-            startSquare: moveRes.from,
-            endSquare: moveRes.to,
-            color: '#E53935',
-          },
-        });
+      try {
+        const moveRes = chess.move(san);
+        if (moveRes) {
+          positions.push({
+            fen: chess.fen(),
+            lastMoveArrow: {
+              startSquare: moveRes.from,
+              endSquare: moveRes.to,
+              color: '#E53935',
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('Error applying trap move:', err);
       }
     }
     return positions;

@@ -131,15 +131,41 @@ export const OpeningPracticeView: React.FC<OpeningPracticeViewProps> = ({
     const expectedMove = opening.moves[currentPlyIndex];
     if (!expectedMove) return false;
 
-    // Test move legally
-    const tempChess = new Chess(chessRef.current.fen());
-    const attemptedMove = tempChess.move({ from, to });
+    // Test move legally without throwing
+    let attemptedMove: ReturnType<Chess['move']> | null = null;
+    try {
+      const tempChess = new Chess(chessRef.current.fen());
+      const piece = tempChess.get(from);
+      const isPromo =
+        piece?.type === 'p' &&
+        ((piece.color === 'w' && to[1] === '8') || (piece.color === 'b' && to[1] === '1'));
+
+      attemptedMove = tempChess.move({
+        from,
+        to,
+        promotion: isPromo ? 'q' : undefined,
+      });
+    } catch {
+      // Illegal board move (e.g. invalid piece destination like g2 to g5)
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      return false;
+    }
+
     if (!attemptedMove) return false;
 
     // Check if attempted move matches expected opening SAN
     if (attemptedMove.san === expectedMove.san) {
       // Correct move!
-      chessRef.current.move({ from, to });
+      try {
+        chessRef.current.move({
+          from,
+          to,
+          promotion: attemptedMove.promotion,
+        });
+      } catch {
+        return false;
+      }
       if (attemptedMove.captured) {
         playCaptureSound(soundEnabled);
       } else {

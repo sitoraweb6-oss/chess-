@@ -2,5 +2,7 @@
   "name": "দাবা শিক্ষক (Daba Shikkhok)",
   "description": "বাংলায় দাবা শেখার প্ল্যাটফর্ম - শিক্ষক সুলভ বিশ্লেষণ, বন্ধুত্বপূর্ণ বট ও সহজ পাঠ",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
