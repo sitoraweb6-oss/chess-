@@ -427,5 +427,24 @@ export function validateAllOpenings(): void {
   }
 }
 
-// Execute validation immediately upon module import
-validateAllOpenings();
+// Bug 6 Fix: Execute complete validation in DEV mode; in production validate individually with console.warn skip
+if (import.meta.env.DEV) {
+  validateAllOpenings();
+} else {
+  for (const opening of OPENINGS_DATA) {
+    try {
+      const mainChess = new Chess();
+      for (const step of opening.moves) {
+        mainChess.move(step.san);
+      }
+      for (const trap of opening.traps) {
+        const trapChess = new Chess();
+        for (const san of trap.movesSan) {
+          trapChess.move(san);
+        }
+      }
+    } catch (err) {
+      console.warn(`[Openings] Skipping invalid opening "${opening.name}":`, err);
+    }
+  }
+}

@@ -47,6 +47,8 @@ export const ReviewScreen: React.FC = () => {
     total: 0,
   });
   const [engineError, setEngineError] = useState<string | null>(null);
+  const [technicalDetails, setTechnicalDetails] = useState<string | null>(null);
+  const analysisStartedForGameIdRef = useRef<string | null>(null);
 
   // Review position cursor
   const [currentMoveIndex, setCurrentMoveIndex] = useState<number>(0);
@@ -77,13 +79,16 @@ export const ReviewScreen: React.FC = () => {
 
   // Run engine analysis if not cached
   useEffect(() => {
-    if (!game || analysis || isAnalyzing) return;
+    if (!game || analysis) return;
+    if (analysisStartedForGameIdRef.current === game.id) return;
+    analysisStartedForGameIdRef.current = game.id;
 
     let isCancelled = false;
 
     const runAnalysis = async () => {
       setIsAnalyzing(true);
       setEngineError(null);
+      setTechnicalDetails(null);
 
       try {
         await stockfishEngine.init();
@@ -137,6 +142,13 @@ export const ReviewScreen: React.FC = () => {
           });
         }
 
+        // Reset engine state and hash tables before full game review
+        try {
+          await stockfishEngine.newGame();
+        } catch (ngErr) {
+          console.warn('[ReviewScreen] newGame error before review:', ngErr);
+        }
+
         // Cache position evaluations to avoid duplicate stockfish calls
         const fenEvals = new Map<
           string,
@@ -145,7 +157,8 @@ export const ReviewScreen: React.FC = () => {
 
         const evaluateFen = async (f: string) => {
           if (fenEvals.has(f)) return fenEvals.get(f)!;
-          const ev = await stockfishEngine.evaluate(f, 12);
+          // evaluate with Skill Level 20 and 300ms movetime
+          const ev = await stockfishEngine.evaluate(f);
           fenEvals.set(f, ev);
           return ev;
         };
@@ -258,12 +271,18 @@ export const ReviewScreen: React.FC = () => {
           }
         }
       } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        // If cancellation, ignore it
+        if (isCancelled || errorMsg.toLowerCase().includes('cancel')) {
+          console.log('[ReviewScreen] Analysis cancelled');
+          return;
+        }
         console.error('Review analysis error:', err);
         setEngineError(bn.ui.engineError);
+        setTechnicalDetails(errorMsg || stockfishEngine.getLastError());
       } finally {
-        if (!isCancelled) {
-          setIsAnalyzing(false);
-        }
+        // In the cancelled path, always reset isAnalyzing to false in finally
+        setIsAnalyzing(false);
       }
     };
 
@@ -271,9 +290,9 @@ export const ReviewScreen: React.FC = () => {
 
     return () => {
       isCancelled = true;
-      stockfishEngine.stop();
+      stockfishEngine.cancelQueue();
     };
-  }, [game, analysis, isAnalyzing]);
+  }, [game, analysis]);
 
   // Clean up any best line animation timeouts on unmount
   useEffect(() => {
@@ -433,8 +452,9 @@ export const ReviewScreen: React.FC = () => {
         <ErrorState
           title={bn.ui.engineError}
           message="রিভিউ বিশ্লেষণ সম্পন্ন করতে স্টকফিশ ইঞ্জিন ব্যর্থ হয়েছে।"
-          technicalDetails={stockfishEngine.getLastError()}
+          technicalDetails={technicalDetails || stockfishEngine.getLastError()}
           onRetry={() => {
+            analysisStartedForGameIdRef.current = null;
             stockfishEngine.reset();
             window.location.reload();
           }}

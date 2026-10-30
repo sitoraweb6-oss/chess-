@@ -215,13 +215,22 @@ export const PlayScreen: React.FC = () => {
     const moveTime = getBotMoveTime(botLevel);
 
     try {
-      let chosenMoveUci = await stockfishEngine.getBestMove(currentFen, {
-        skillLevel,
-        movetime: moveTime,
-      });
+      let chosenMoveUci = await stockfishEngine
+        .getBestMove(currentFen, {
+          skillLevel,
+          movetime: moveTime,
+        })
+        .catch((err) => {
+          console.warn('[PlayScreen] stockfishEngine.getBestMove failed, will use fallback:', err);
+          return '';
+        });
 
       // Beginners feature: levels 1-3 occasionally play a fun non-best legal move
-      if (botLevel <= 3 && Math.random() < (botLevel === 1 ? 0.35 : botLevel === 2 ? 0.25 : 0.15)) {
+      if (
+        chosenMoveUci &&
+        botLevel <= 3 &&
+        Math.random() < (botLevel === 1 ? 0.35 : botLevel === 2 ? 0.25 : 0.15)
+      ) {
         const legalList = chessRef.current.moves({ verbose: true });
         if (legalList.length > 1) {
           const randomIdx = Math.floor(Math.random() * legalList.length);
@@ -236,30 +245,70 @@ export const PlayScreen: React.FC = () => {
         await new Promise((r) => setTimeout(r, 500 - elapsed));
       }
 
+      let moveRes: ReturnType<Chess['move']> | null = null;
+      let finalFrom: Square | null = null;
+      let finalTo: Square | null = null;
+
+      // Attempt to play the chosen UCI move
       if (chosenMoveUci && chosenMoveUci.length >= 4) {
         const from = chosenMoveUci.slice(0, 2) as Square;
         const to = chosenMoveUci.slice(2, 4) as Square;
         const promotion = (chosenMoveUci[4] as PieceSymbol) || undefined;
-
-        const moveRes = chessRef.current.move({ from, to, promotion });
-        if (moveRes) {
-          if (moveRes.captured) {
-            playCaptureSound(settings.sound);
-          } else {
-            playMoveSound(settings.sound);
+        try {
+          moveRes = chessRef.current.move({ from, to, promotion });
+          if (moveRes) {
+            finalFrom = from;
+            finalTo = to;
           }
-          if (chessRef.current.inCheck()) {
-            playCheckSound(settings.sound);
-          }
-
-          setLastMove({ from, to });
-          setFen(chessRef.current.fen());
-          syncActiveGame();
-          checkGameOver();
+        } catch (moveErr) {
+          console.warn('[PlayScreen] Bot engine move failed, will use fallback:', chosenMoveUci, moveErr);
+          moveRes = null;
         }
       }
+
+      // Fallback: If chosen move was empty or failed/threw, pick a random legal move
+      if (!moveRes) {
+        console.warn('[PlayScreen] Bot move fallback: selecting random legal move so bot never freezes');
+        const legalList = chessRef.current.moves({ verbose: true });
+        if (legalList.length > 0) {
+          const randomMove = legalList[Math.floor(Math.random() * legalList.length)];
+          try {
+            moveRes = chessRef.current.move({
+              from: randomMove.from,
+              to: randomMove.to,
+              promotion: randomMove.promotion,
+            });
+            if (moveRes) {
+              finalFrom = randomMove.from as Square;
+              finalTo = randomMove.to as Square;
+            }
+          } catch (fallbackErr) {
+            console.error('[PlayScreen] Random fallback move also failed:', fallbackErr);
+          }
+        }
+      }
+
+      if (moveRes && finalFrom && finalTo) {
+        if (moveRes.captured) {
+          playCaptureSound(settings.sound);
+        } else {
+          playMoveSound(settings.sound);
+        }
+        if (chessRef.current.inCheck()) {
+          playCheckSound(settings.sound);
+        }
+
+        setLastMove({ from: finalFrom, to: finalTo });
+        setFen(chessRef.current.fen());
+        syncActiveGame();
+        checkGameOver();
+      } else {
+        // If no moves can be made, trigger game over check
+        checkGameOver();
+      }
     } catch (err) {
-      console.warn('Bot move error:', err);
+      console.warn('[PlayScreen] Bot move caught unexpected error:', err);
+      checkGameOver();
     } finally {
       setIsBotThinking(false);
     }
@@ -303,6 +352,9 @@ export const PlayScreen: React.FC = () => {
 
   // Start new game
   const handleStartGame = () => {
+    // Reset engine hash tables and cache for the new game
+    stockfishEngine.newGame().catch((e) => console.warn('[PlayScreen] newGame error on start:', e));
+
     const finalColor =
       colorSelection === 'random'
         ? Math.random() < 0.5
