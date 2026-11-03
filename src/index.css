@@ -1,5 +1,35 @@
 @import "tailwindcss";
 
+/* Locally Hosted Bangla Typography - Zero External CDN Requests */
+@font-face {
+  font-family: 'Hind Siliguri';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/hindsiliguri-400.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Hind Siliguri';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/hindsiliguri-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Hind Siliguri';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/hindsiliguri-600.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Hind Siliguri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/hindsiliguri-700.ttf') format('truetype');
+}
+
 @theme {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
