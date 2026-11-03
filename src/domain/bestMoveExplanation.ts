@@ -20,6 +20,7 @@ export interface BestMoveExplanation {
   advantageBn: string;
   cp?: number;
   mate?: number;
+  engineElo?: number;
 }
 
 const PIECE_GLYPHS: Record<PieceSymbol, { white: string; black: string }> = {
@@ -37,7 +38,8 @@ const PIECE_GLYPHS: Record<PieceSymbol, { white: string; black: string }> = {
 export function explainBestMove(
   fen: string,
   bestMoveUci: string,
-  evalResult?: EvaluationResult
+  evalResult?: EvaluationResult,
+  engineElo?: number
 ): BestMoveExplanation | null {
   if (!bestMoveUci || bestMoveUci.length < 4) return null;
 
@@ -91,181 +93,8 @@ export function explainBestMove(
     // Determine explanation reason
     let explanation = '';
 
-    // 1. Direct Checkmate
-    if (chess.isCheckmate()) {
-      explanation = `অসাধারণ চাল! ${san} চালটি প্রতিপক্ষের রাজাকে সরাসরি চেকমেট প্রদান করে বিজয় এনে দেয়।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 2. Forced Mate sequence
-    if (evalResult?.mate && evalResult.mate !== 0) {
-      const turns = Math.abs(evalResult.mate);
-      explanation = `এই চালটি ${toBanglaNumeral(turns)} চালে নিশ্চিত চেকমেটের পথ তৈরি করে। প্রতিপক্ষের প্রতিরক্ষা ভেঙে ফেলে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 3. Delivers a Check
-    if (chess.inCheck()) {
-      explanation = `প্রতিপক্ষের রাজাকে চেক দিয়ে চাপে ফেলে এবং তাদের পরিকল্পনা বানচাল করে আক্রমণ তৈরি করে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 4. Captures enemy piece
-    if (targetPiece) {
-      const capturedName = PIECE_NAMES[targetPiece.type] || 'ঘুঁটি';
-      if (targetPiece.type === 'q') {
-        explanation = `প্রতিপক্ষের সবচেয়ে শক্তিশালী ঘুঁটি মন্ত্রী কেটে নিয়ে খেলায় বিপুল এগিয়ে যায়।`;
-      } else if (targetPiece.type === 'r') {
-        explanation = `প্রতিপক্ষের মূল্যবান নৌকা কেটে মেটেরিয়াল সুবিধা নিশ্চিত করে।`;
-      } else if (targetPiece.type === 'b' || targetPiece.type === 'n') {
-        explanation = `প্রতিপক্ষের সক্রিয় ${capturedName} কেটে নিয়ে আক্রমণের গতি থামিয়ে দেয়।`;
-      } else {
-        explanation = `প্রতিপক্ষের সৈন্য কেটে কেন্দ্র ও ফাইল দখল করে এগিয়ে যায়।`;
-      }
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 5. Castling
-    if (pieceType === 'k' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
-      explanation = `ক্যাসলিং করে রাজাকে নিরাপদে সরিয়ে নেয় এবং নৌকাকে খেলায় যুক্ত করে কেন্দ্রের নিয়ন্ত্রণ বাড়ায়।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 6. Escaping attack if piece was hung
-    if (wasHung) {
-      explanation = `আক্রান্ত ${pieceName}-টিকে প্রতিপক্ষের আক্রমণ থেকে সুরক্ষিত ঘরে সরিয়ে নিরাপদ করে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 7. Pawn advance to center
-    if (pieceType === 'p' && (to === 'e4' || to === 'd4' || to === 'e5' || to === 'd5' || to === 'c4' || to === 'c5')) {
-      explanation = `বোর্ডের কেন্দ্রে শক্ত নিয়ন্ত্রণ প্রতিষ্ঠা করে এবং অন্যান্য ঘুঁটির চলাচলের পথ উন্মুক্ত করে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 8. Developing Knights and Bishops
-    if (pieceType === 'n' || pieceType === 'b') {
-      explanation = `ঘুঁটির দ্রুত বিকাশ (Development) ঘটিয়ে কেন্দ্রের সুরক্ষা বৃদ্ধি করে ও রাজাকে ক্যাসলিংয়ের জন্য প্রস্তুত করে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // 9. Pawn push towards promotion
-    if (pieceType === 'p' && ((color === 'w' && to[1] === '7') || (color === 'b' && to[1] === '2'))) {
-      explanation = `সৈন্যটিকে প্রমোশনের দরজায় পৌঁছে দিয়ে প্রতিপক্ষের ওপর প্রচণ্ড চাপ সৃষ্টি করে।`;
-      return {
-        uci: bestMoveUci,
-        san,
-        from,
-        to,
-        pieceName,
-        pieceSymbol: glyph,
-        moveBn,
-        explanation,
-        advantageBn,
-        cp: evalResult?.cp,
-        mate: evalResult?.mate,
-      };
-    }
-
-    // Default positional improvement
-    explanation = `পজিশনে সবচেয়ে কার্যকর ঘরে অবস্থান নিয়ে ঘুঁটির সক্রিয়তা ও বোর্ড নিয়ন্ত্রণ বৃদ্ধি করে।`;
-    return {
+    // Helper to package the result
+    const createResult = (explanationText: string): BestMoveExplanation => ({
       uci: bestMoveUci,
       san,
       from,
@@ -273,11 +102,96 @@ export function explainBestMove(
       pieceName,
       pieceSymbol: glyph,
       moveBn,
-      explanation,
+      explanation: explanationText,
       advantageBn,
       cp: evalResult?.cp,
       mate: evalResult?.mate,
-    };
+      engineElo,
+    });
+
+    // 1. Direct Checkmate
+    if (chess.isCheckmate()) {
+      return createResult(
+        `অসাধারণ চাল! ${san} চালটি প্রতিপক্ষের রাজাকে সরাসরি চেকমেট প্রদান করে বিজয় এনে দেয়।`
+      );
+    }
+
+    // 2. Forced Mate sequence
+    if (evalResult?.mate && evalResult.mate !== 0) {
+      const turns = Math.abs(evalResult.mate);
+      return createResult(
+        `এই চালটি ${toBanglaNumeral(turns)} চালে নিশ্চিত চেকমেটের পথ তৈরি করে। প্রতিপক্ষের প্রতিরক্ষা ভেঙে ফেলে।`
+      );
+    }
+
+    // 3. Delivers a Check
+    if (chess.inCheck()) {
+      return createResult(
+        `প্রতিপক্ষের রাজাকে চেক দিয়ে চাপে ফেলে এবং তাদের পরিকল্পনা বানচাল করে আক্রমণ তৈরি করে।`
+      );
+    }
+
+    // 4. Captures enemy piece
+    if (targetPiece) {
+      const capturedName = PIECE_NAMES[targetPiece.type] || 'ঘুঁটি';
+      if (targetPiece.type === 'q') {
+        return createResult(
+          `প্রতিপক্ষের সবচেয়ে শক্তিশালী ঘুঁটি মন্ত্রী কেটে নিয়ে খেলায় বিপুল এগিয়ে যায়।`
+        );
+      } else if (targetPiece.type === 'r') {
+        return createResult(
+          `প্রতিপক্ষের মূল্যবান নৌকা কেটে মেটেরিয়াল সুবিধা নিশ্চিত করে।`
+        );
+      } else if (targetPiece.type === 'b' || targetPiece.type === 'n') {
+        return createResult(
+          `প্রতিপক্ষের সক্রিয় ${capturedName} কেটে নিয়ে আক্রমণের গতি থামিয়ে দেয়।`
+        );
+      } else {
+        return createResult(
+          `প্রতিপক্ষের সৈন্য কেটে কেন্দ্র ও ফাইল দখল করে এগিয়ে যায়।`
+        );
+      }
+    }
+
+    // 5. Castling
+    if (pieceType === 'k' && Math.abs(from.charCodeAt(0) - to.charCodeAt(0)) === 2) {
+      return createResult(
+        `ক্যাসলিং করে রাজাকে নিরাপদে সরিয়ে নেয় এবং নৌকাকে খেলায় যুক্ত করে কেন্দ্রের নিয়ন্ত্রণ বাড়ায়।`
+      );
+    }
+
+    // 6. Escaping attack if piece was hung
+    if (wasHung) {
+      return createResult(
+        `আক্রান্ত ${pieceName}-টিকে প্রতিপক্ষের আক্রমণ থেকে সুরক্ষিত ঘরে সরিয়ে নিরাপদ করে।`
+      );
+    }
+
+    // 7. Pawn advance to center
+    if (pieceType === 'p' && (to === 'e4' || to === 'd4' || to === 'e5' || to === 'd5' || to === 'c4' || to === 'c5')) {
+      return createResult(
+        `বোর্ডের কেন্দ্রে শক্ত নিয়ন্ত্রণ প্রতিষ্ঠা করে এবং অন্যান্য ঘুঁটির চলাচলের পথ উন্মুক্ত করে।`
+      );
+    }
+
+    // 8. Developing Knights and Bishops
+    if (pieceType === 'n' || pieceType === 'b') {
+      return createResult(
+        `ঘুঁটির দ্রুত বিকাশ (Development) ঘটিয়ে কেন্দ্রের সুরক্ষা বৃদ্ধি করে ও রাজাকে ক্যাসলিংয়ের জন্য প্রস্তুত করে।`
+      );
+    }
+
+    // 9. Pawn push towards promotion
+    if (pieceType === 'p' && ((color === 'w' && to[1] === '7') || (color === 'b' && to[1] === '2'))) {
+      return createResult(
+        `সৈন্যটিকে প্রমোশনের দরজায় পৌঁছে দিয়ে প্রতিপক্ষের ওপর প্রচণ্ড চাপ সৃষ্টি করে।`
+      );
+    }
+
+    // Default positional improvement
+    return createResult(
+      `পজিশনে সবচেয়ে কার্যকর ঘরে অবস্থান নিয়ে ঘুঁটির সক্রিয়তা ও বোর্ড নিয়ন্ত্রণ বৃদ্ধি করে।`
+    );
   } catch (err) {
     console.warn('[explainBestMove] Error generating explanation:', err);
     return null;

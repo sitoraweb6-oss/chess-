@@ -13,10 +13,16 @@ import { PromotionModal } from '../play/PromotionModal.tsx';
 import { SoloControls } from './SoloControls.tsx';
 import { SoloHintCard } from './SoloHintCard.tsx';
 import { SoloMoveHistory } from './SoloMoveHistory.tsx';
+import { SoloBrainModal } from './SoloBrainModal.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import { stockfishEngine, EvaluationResult } from '../../engine/index.ts';
 import { evaluateFenSafe } from '../../engine/evaluator.ts';
 import { explainBestMove, BestMoveExplanation } from '../../domain/bestMoveExplanation.ts';
+import {
+  getSkillLevelFromElo,
+  getMoveTimeFromElo,
+  getEloBrainTitleBn,
+} from '../../domain/rating.ts';
 import { saveCompletedGame, GameRecord } from '../../storage/index.ts';
 import {
   playMoveSound,
@@ -34,6 +40,27 @@ import { useSettings } from '../../hooks/useSettings.ts';
 export const SoloPlayScreen: React.FC = () => {
   const navigate = useNavigate();
   const { settings } = useSettings();
+
+  // Engine Brain Level (ELO rating) - defaults to 2000, persisted in localStorage
+  const [engineElo, setEngineElo] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('dabaShikkhok:soloEngineElo');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 800 && parsed <= 2600) return parsed;
+      }
+    } catch {}
+    return 2000;
+  });
+  const [showBrainModal, setShowBrainModal] = useState<boolean>(false);
+
+  const handleSelectElo = (newElo: number) => {
+    setEngineElo(newElo);
+    try {
+      localStorage.setItem('dabaShikkhok:soloEngineElo', String(newElo));
+    } catch {}
+    setToastMessage(`ইঞ্জিন ব্রেন লেভেল সফলভাবে ${toBanglaNumeral(newElo)} এলো-তে নির্ধারণ করা হয়েছে।`);
+  };
 
   // Chess instance & position state
   const chessRef = useRef<Chess>(new Chess());
@@ -205,9 +232,13 @@ export const SoloPlayScreen: React.FC = () => {
     try {
       const currentFen = chessRef.current.fen();
 
-      // Get high-quality best move (Skill Level 20, 500ms)
+      // Compute skill level and search time dynamically from user-selected ELO
+      const skillLevel = getSkillLevelFromElo(engineElo);
+      const moveTime = getMoveTimeFromElo(engineElo);
+
+      // Get high-quality best move based on selected engine brain level
       const [bestMoveUci, evalRes] = await Promise.all([
-        stockfishEngine.getBestMove(currentFen, { skillLevel: 20, movetime: 500 }),
+        stockfishEngine.getBestMove(currentFen, { skillLevel, movetime: moveTime }),
         evaluateFenSafe(currentFen, { movetime: 350 }),
       ]);
 
@@ -223,8 +254,8 @@ export const SoloPlayScreen: React.FC = () => {
         });
         setHintHighlight({ from, to });
 
-        // Bangla Explanation Card
-        const explanation = explainBestMove(currentFen, bestMoveUci, evalRes);
+        // Bangla Explanation Card with ELO awareness
+        const explanation = explainBestMove(currentFen, bestMoveUci, evalRes, engineElo);
         setBestHint(explanation);
       }
     } catch (err) {
@@ -515,8 +546,21 @@ export const SoloPlayScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Turn indicator badge */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Engine brain level button and turn indicator badge */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowBrainModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary/40 bg-primary-soft text-primary font-medium text-xs hover:bg-primary-soft/80 active:scale-95 transition-all shadow-xs cursor-pointer touch-target"
+            title="ইঞ্জিনের ব্রেন লেভেল পরিবর্তন করুন"
+          >
+            <span aria-hidden="true">🧠</span>
+            <span className="font-semibold">{getEloBrainTitleBn(engineElo)}</span>
+            <span className="text-[10px] bg-primary text-primary-fg px-1.5 py-0.5 rounded-md font-normal">
+              {bn.solo.changeLevelBtn}
+            </span>
+          </button>
+
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border font-semibold text-xs shadow-xs transition-colors ${
               isWhiteTurn
@@ -584,6 +628,8 @@ export const SoloPlayScreen: React.FC = () => {
           {/* Controls Bar */}
           <div className="w-full max-w-[460px]">
             <SoloControls
+              engineElo={engineElo}
+              onOpenBrainModal={() => setShowBrainModal(true)}
               isHintLoading={isHintLoading}
               canUndo={moveHistory.length > 0}
               canRedo={currentMoveIndex < positionsHistoryRef.current.length - 1}
@@ -704,6 +750,14 @@ export const SoloPlayScreen: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* Engine ELO Brain Level Configuration Modal */}
+      <SoloBrainModal
+        isOpen={showBrainModal}
+        currentElo={engineElo}
+        onSelectElo={handleSelectElo}
+        onClose={() => setShowBrainModal(false)}
+      />
 
       {/* Toast alert */}
       {toastMessage && (

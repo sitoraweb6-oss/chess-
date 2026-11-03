@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { Badge } from '../../components/ui/Badge.tsx';
 import { BestMoveExplanation } from '../../domain/bestMoveExplanation.ts';
+import { getEloBrainTitleBn } from '../../domain/rating.ts';
 import { bn } from '../../i18n/bn.ts';
 
 export interface SoloHintCardProps {
@@ -31,9 +32,16 @@ export const SoloHintCard: React.FC<SoloHintCardProps> = ({
             <Lightbulb className="w-4 h-4 fill-current text-accent" />
           </div>
           <div>
-            <span className="text-xs font-semibold text-primary block">
-              {bn.solo.hintCardTitle}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-semibold text-primary block">
+                {bn.solo.hintCardTitle}
+              </span>
+              {typeof hint.engineElo === 'number' && (
+                <span className="text-[10px] font-mono font-bold bg-primary-soft text-primary px-1.5 py-0.2 rounded">
+                  🧠 {getEloBrainTitleBn(hint.engineElo)}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-muted">
               {hint.advantageBn}
             </span>

@@ -411,6 +411,12 @@ export const bn = {
     playAgain: 'আবার শুরু করো',
     reviewGame: 'খেলা রিভিউ করো',
     clearHint: 'ইঙ্গিত মুছুন',
+    engineBrainModalTitle: 'ইঞ্জিন ব্রেন লেভেল (Elo) নির্ধারণ',
+    engineBrainModalDesc: 'ইঙ্গিত এবং পজিশন বিশ্লেষণ স্টকফিশের কোন শক্তির স্তর অনুযায়ী পেতে চান তা নির্বাচন করুন:',
+    engineBrainLevel: 'ইঞ্জিন ব্রেন লেভেল',
+    customEloLabel: 'কাস্টম রেটিং স্লাইডার',
+    changeLevelBtn: 'লেভেল পরিবর্তন',
+    brainLevelBadge: 'ইঞ্জিন স্তর',
   },
 
   // Common UI

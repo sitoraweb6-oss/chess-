@@ -9,14 +9,17 @@ import {
   Copy,
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button.tsx';
-import { bn } from '../../i18n/bn.ts';
+import { getEloBrainTitleBn } from '../../domain/rating.ts';
+import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 
 export interface SoloControlsProps {
+  engineElo: number;
   isHintLoading: boolean;
   canUndo: boolean;
   canRedo: boolean;
   showEvalBar: boolean;
   autoFlip: boolean;
+  onOpenBrainModal: () => void;
   onGetBestHint: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -28,11 +31,13 @@ export interface SoloControlsProps {
 }
 
 export const SoloControls: React.FC<SoloControlsProps> = ({
+  engineElo,
   isHintLoading,
   canUndo,
   canRedo,
   showEvalBar,
   autoFlip,
+  onOpenBrainModal,
   onGetBestHint,
   onUndo,
   onRedo,
@@ -44,6 +49,29 @@ export const SoloControls: React.FC<SoloControlsProps> = ({
 }) => {
   return (
     <div className="space-y-2.5">
+      {/* Engine Brain Level Control Strip */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-2 border border-border">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base select-none" aria-hidden="true">🧠</span>
+          <div className="truncate">
+            <span className="text-xs font-semibold text-fg mr-1.5">
+              {bn.solo.engineBrainLevel}:
+            </span>
+            <span className="text-xs font-mono font-bold text-primary">
+              {getEloBrainTitleBn(engineElo)}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenBrainModal}
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-surface hover:bg-surface-2 border border-border text-primary hover:border-primary/40 transition-colors cursor-pointer touch-target shrink-0 ml-2"
+        >
+          {bn.solo.changeLevelBtn}
+        </button>
+      </div>
+
       {/* Primary Big Action: Unlimited Best Hint Button */}
       <Button
         onClick={onGetBestHint}
@@ -55,7 +83,7 @@ export const SoloControls: React.FC<SoloControlsProps> = ({
       >
         <span>{bn.solo.getBestHintBtn}</span>
         <span className="text-xs font-normal opacity-90 ml-1">
-          ({bn.solo.unlimitedHintsDesc})
+          (সীমাহীন ইঙ্গিত · {toBanglaNumeral(engineElo)} এলো)
         </span>
       </Button>
 
