@@ -2,15 +2,21 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Play, Settings as SettingsIcon } from 'lucide-react';
 import { bn } from '../i18n/bn.ts';
+import { isSoloFeatureUnlocked } from '../utils/security.ts';
 
 export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isSoloUnlocked = isSoloFeatureUnlocked();
 
   const navLinks: { path: string; label: string; badge?: string }[] = [
     { path: '/', label: bn.nav.home },
     { path: '/play', label: bn.nav.play },
-    { path: '/solo', label: bn.nav.solo, badge: 'সীমাহীন ইঙ্গিত' },
+    {
+      path: '/solo',
+      label: bn.nav.solo,
+      badge: isSoloUnlocked ? 'সীমাহীন ইঙ্গিত' : '🔒 সুরক্ষিত',
+    },
     { path: '/openings', label: bn.nav.openings },
     { path: '/puzzles', label: 'ভুলের পাজল' },
   ];

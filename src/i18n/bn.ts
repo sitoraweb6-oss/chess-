@@ -417,6 +417,17 @@ export const bn = {
     customEloLabel: 'কাস্টম রেটিং স্লাইডার',
     changeLevelBtn: 'লেভেল পরিবর্তন',
     brainLevelBadge: 'ইঞ্জিন স্তর',
+    // Security & Lock screen
+    lockTitle: 'ব্যক্তিগত বিশ্লেষণ ও খেলা লক করা',
+    lockSubtitle: 'এই গোপন বিশ্লেষণ ফিচারে প্রবেশের জন্য নিরাপত্তা পাসকোড প্রয়োজন।',
+    lockPasscodePlaceholder: 'গোপন পাসকোড লিখুন...',
+    lockUnlockBtn: 'আনলক করুন',
+    lockVerifying: 'যাচাই করা হচ্ছে...',
+    lockWrongPasscode: 'ভুল পাসকোড! সঠিক কোড দিয়ে পুনরায় চেষ্টা করুন।',
+    lockSuccess: 'সফলভাবে আনলক করা হয়েছে!',
+    lockButtonTitle: 'লক করুন',
+    lockProtectedBadge: 'পাসকোড সুরক্ষিত',
+    privacyNotice: 'আপনার গোপনীয়তা শতভাগ সুরক্ষিত — কোনো ট্র্যাকার, অ্যানালিটিক্স বা নজরদারি নেই',
   },
 
   // Common UI

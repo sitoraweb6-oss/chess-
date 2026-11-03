@@ -52,6 +52,22 @@ export function getMoveTimeFromElo(elo: number): number {
 }
 
 /**
+ * Search depth limit based on ELO to ensure authentic playing strength
+ * Low ELO (800-1000) = depth 4 (2 moves ahead)
+ * Mid ELO (1500) = depth 8 (4 moves ahead)
+ * High ELO (2000) = depth 14
+ * Grandmaster (2400+) = undefined (unlimited deep calculation)
+ */
+export function getMaxDepthFromElo(elo: number): number | undefined {
+  if (elo >= 2400) return undefined;
+  if (elo >= 2000) return 14;
+  if (elo >= 1800) return 11;
+  if (elo >= 1500) return 8;
+  if (elo >= 1200) return 6;
+  return 4;
+}
+
+/**
  * User-facing title for engine brain level in Bangla
  */
 export function getEloBrainTitleBn(elo: number): string {
@@ -105,6 +121,16 @@ export function getBotSkillLevel(level: number): number {
 export function getBotMoveTime(level: number): number {
   const clamped = Math.max(1, Math.min(10, Math.round(level)));
   return Math.round(100 + ((clamped - 1) * (1500 - 100)) / 9);
+}
+
+/**
+ * Bot search depth cap (3 - 18) based on bot level (1 - 10)
+ */
+export function getBotMaxDepth(level: number): number | undefined {
+  const clamped = Math.max(1, Math.min(10, Math.round(level)));
+  if (clamped >= 10) return undefined; // level 10: unconstrained GM depth
+  // Level 1: 3, Level 2: 4, Level 5: 8, Level 8: 14, Level 9: 18
+  return Math.round(3 + ((clamped - 1) * (18 - 3)) / 8);
 }
 
 /**

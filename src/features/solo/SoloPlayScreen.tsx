@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import { Chessboard, Arrow } from 'react-chessboard';
-import { Sparkles, Trophy, RotateCw, Flag, Award } from 'lucide-react';
+import { Sparkles, Trophy, RotateCw, Flag, Award, Lock } from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { Badge } from '../../components/ui/Badge.tsx';
@@ -14,6 +14,8 @@ import { SoloControls } from './SoloControls.tsx';
 import { SoloHintCard } from './SoloHintCard.tsx';
 import { SoloMoveHistory } from './SoloMoveHistory.tsx';
 import { SoloBrainModal } from './SoloBrainModal.tsx';
+import { SoloLockScreen } from './SoloLockScreen.tsx';
+import { isSoloFeatureUnlocked, setSoloFeatureUnlocked } from '../../utils/security.ts';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import { stockfishEngine, EvaluationResult } from '../../engine/index.ts';
 import { evaluateFenSafe } from '../../engine/evaluator.ts';
@@ -21,6 +23,7 @@ import { explainBestMove, BestMoveExplanation } from '../../domain/bestMoveExpla
 import {
   getSkillLevelFromElo,
   getMoveTimeFromElo,
+  getMaxDepthFromElo,
   getEloBrainTitleBn,
 } from '../../domain/rating.ts';
 import { saveCompletedGame, GameRecord } from '../../storage/index.ts';
@@ -40,6 +43,14 @@ import { useSettings } from '../../hooks/useSettings.ts';
 export const SoloPlayScreen: React.FC = () => {
   const navigate = useNavigate();
   const { settings } = useSettings();
+
+  // Passcode Lock Protection for Solo Sandbox (cryptographically secured)
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => isSoloFeatureUnlocked());
+
+  const handleLockSolo = () => {
+    setSoloFeatureUnlocked(false);
+    setIsUnlocked(false);
+  };
 
   // Engine Brain Level (ELO rating) - defaults to 2000, persisted in localStorage
   const [engineElo, setEngineElo] = useState<number>(() => {
@@ -232,13 +243,18 @@ export const SoloPlayScreen: React.FC = () => {
     try {
       const currentFen = chessRef.current.fen();
 
-      // Compute skill level and search time dynamically from user-selected ELO
+      // Compute skill level, search time, and search depth cap dynamically from user-selected ELO
       const skillLevel = getSkillLevelFromElo(engineElo);
       const moveTime = getMoveTimeFromElo(engineElo);
+      const maxDepth = getMaxDepthFromElo(engineElo);
 
-      // Get high-quality best move based on selected engine brain level
+      // Get best move strictly calibrated to selected engine brain level
       const [bestMoveUci, evalRes] = await Promise.all([
-        stockfishEngine.getBestMove(currentFen, { skillLevel, movetime: moveTime }),
+        stockfishEngine.getBestMove(currentFen, {
+          skillLevel,
+          movetime: moveTime,
+          depth: maxDepth,
+        }),
         evaluateFenSafe(currentFen, { movetime: 350 }),
       ]);
 
@@ -523,6 +539,10 @@ export const SoloPlayScreen: React.FC = () => {
     return hintArrow ? [hintArrow] : [];
   }, [hintArrow]);
 
+  if (!isUnlocked) {
+    return <SoloLockScreen onUnlockSuccess={() => setIsUnlocked(true)} />;
+  }
+
   const boardThemeColors = BOARD_THEMES[settings.boardTheme] || BOARD_THEMES.classic;
   const isWhiteTurn = chessRef.current.turn() === 'w';
 
@@ -546,7 +566,7 @@ export const SoloPlayScreen: React.FC = () => {
           </p>
         </div>
 
-        {/* Engine brain level button and turn indicator badge */}
+        {/* Engine brain level button, re-lock button, and turn indicator badge */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
@@ -559,6 +579,16 @@ export const SoloPlayScreen: React.FC = () => {
             <span className="text-[10px] bg-primary text-primary-fg px-1.5 py-0.5 rounded-md font-normal">
               {bn.solo.changeLevelBtn}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLockSolo}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-surface hover:bg-surface-2 text-muted hover:text-fg text-xs transition-colors cursor-pointer touch-target shadow-xs"
+            title={bn.solo.lockButtonTitle}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{bn.solo.lockButtonTitle}</span>
           </button>
 
           <div

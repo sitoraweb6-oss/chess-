@@ -25,6 +25,7 @@ import {
   getBotRating,
   getBotSkillLevel,
   getBotMoveTime,
+  getBotMaxDepth,
   calculateElo,
   getKFactor,
   DEFAULT_BOT_LEVELS,
@@ -326,12 +327,14 @@ export const PlayScreen: React.FC = () => {
     const currentFen = chessRef.current.fen();
     const skillLevel = getBotSkillLevel(botLevel);
     const moveTime = getBotMoveTime(botLevel);
+    const maxDepth = getBotMaxDepth(botLevel);
 
     try {
       let chosenMoveUci = await stockfishEngine
         .getBestMove(currentFen, {
           skillLevel,
           movetime: moveTime,
+          depth: maxDepth,
         })
         .catch((err) => {
           console.warn('[PlayScreen] stockfishEngine.getBestMove failed, will use fallback:', err);

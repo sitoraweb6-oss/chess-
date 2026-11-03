@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
 import { getBotRating } from '../../domain/rating.ts';
+import { isSoloFeatureUnlocked } from '../../utils/security.ts';
 
 export interface PlaySetupProps {
   botLevel: number;
@@ -22,6 +23,7 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
   onStartGame,
 }) => {
   const navigate = useNavigate();
+  const isSoloUnlocked = isSoloFeatureUnlocked();
 
   return (
     <Card className="max-w-md mx-auto my-6 p-6 space-y-6">
@@ -39,7 +41,9 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
           className="py-2 px-2 text-xs font-medium rounded-lg text-muted hover:text-fg hover:bg-surface flex items-center justify-center gap-1.5 transition-colors cursor-pointer touch-target"
         >
           <span>👤 নিজে একা খেলো</span>
-          <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-bold">সীমাহীন</span>
+          <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-bold">
+            {isSoloUnlocked ? 'সীমাহীন' : '🔒 লকড'}
+          </span>
         </button>
       </div>
 

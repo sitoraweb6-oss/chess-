@@ -26,6 +26,7 @@ import {
 } from '../../storage/index.ts';
 import { isProvisionalRating, getBotRating } from '../../domain/rating.ts';
 import { buildWeaknessProfile, getSuggestedOpening } from '../../domain/profile.ts';
+import { isSoloFeatureUnlocked } from '../../utils/security.ts';
 
 export const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -316,15 +317,18 @@ export const HomeScreen: React.FC = () => {
             <Badge variant="primary" size="sm">
               নতুন ফিচার
             </Badge>
+            <Badge variant="accent" size="sm">
+              {isSoloFeatureUnlocked() ? 'সীমাহীন সেরা ইঙ্গিত' : '🔒 পাসকোড সুরক্ষিত'}
+            </Badge>
             <span className="text-xs font-semibold text-primary">
-              নিজে একা খেলো ও সীমাহীন ইঙ্গিত
+              নিজে একা খেলো ও বিশ্লেষণ
             </span>
           </div>
           <h3 className="font-bold text-base text-fg">
             বোর্ডের উভয় পক্ষে একা একা খেলুন এবং যেকোনো মুহূর্তে স্টকফিশের সেরা ইঙ্গিত নিন
           </h3>
           <p className="text-xs text-muted leading-relaxed">
-            কোনো সীমাবদ্ধতা ছাড়া নিজেই নিজের সাথে দাবা খেলুন। প্রতিটি চালে স্টকফিশের সর্বোচ্চ মানের চাল ও বাংলা শিক্ষকসুলভ ব্যাখ্যা দেখুন।
+            কোনো সীমাবদ্ধতা ছাড়া নিজেই নিজের সাথে দাবা খেলুন। প্রতিটি চালে স্টকফিশের নির্বাচিত ব্রেন লেভেলের সেরা চাল ও বাংলা শিক্ষকসুলভ ব্যাখ্যা দেখুন।
           </p>
         </div>
 
@@ -335,7 +339,7 @@ export const HomeScreen: React.FC = () => {
           className="shrink-0 shadow-sm"
           rightIcon={<ArrowRight className="w-4 h-4" />}
         >
-          এখনই শুরু করো
+          {isSoloFeatureUnlocked() ? 'এখনই শুরু করো' : 'আনলক করে শুরু করো'}
         </Button>
       </Card>
 

@@ -28,6 +28,7 @@ export interface EvaluationResult {
 export interface EngineMoveOptions {
   movetime?: number;
   skillLevel?: number;
+  depth?: number;
 }
 
 interface QueuedTask<T> {
@@ -437,12 +438,22 @@ class ChessEngineService {
             return false;
           };
 
-          // Bug 2 Fix: Always send a Skill Level (default 20 if not given)
+          // Set Skill Level (0-20), optional UCI_Elo, and search depth cap
           const skillLevel = typeof options.skillLevel === 'number' ? options.skillLevel : 20;
-          console.log(`[Engine] Sending Skill Level value ${skillLevel} for bestmove`);
+          console.log(
+            `[Engine] Sending Skill Level value ${skillLevel} for bestmove (depth: ${options.depth || 'auto'}, movetime: ${movetime}ms)`
+          );
           this.worker?.postMessage(`setoption name Skill Level value ${skillLevel}`);
+          if (skillLevel < 20) {
+            this.worker?.postMessage('setoption name UCI_LimitStrength value true');
+            const approxElo = 800 + Math.round((skillLevel * 1800) / 20);
+            this.worker?.postMessage(`setoption name UCI_Elo value ${approxElo}`);
+          } else {
+            this.worker?.postMessage('setoption name UCI_LimitStrength value false');
+          }
           this.worker?.postMessage(`position fen ${fen}`);
-          this.worker?.postMessage(`go movetime ${movetime}`);
+          const depthCmd = typeof options.depth === 'number' ? ` depth ${options.depth}` : '';
+          this.worker?.postMessage(`go movetime ${movetime}${depthCmd}`);
         },
       };
 
