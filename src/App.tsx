@@ -11,6 +11,7 @@ import { PlayScreen } from './features/play/PlayScreen.tsx';
 import { ReviewScreen } from './features/review/ReviewScreen.tsx';
 import { OpeningsScreen } from './features/openings/OpeningsScreen.tsx';
 import { PuzzlesScreen } from './features/puzzles/PuzzlesScreen.tsx';
+import { SoloPlayScreen } from './features/solo/SoloPlayScreen.tsx';
 import { SettingsScreen } from './features/settings/SettingsScreen.tsx';
 import { OnboardingModal } from './features/onboarding/OnboardingModal.tsx';
 import { hasCompletedOnboarding, getStorageData } from './storage/index.ts';
@@ -47,6 +48,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomeScreen />} />
             <Route path="/play" element={<PlayScreen />} />
+            <Route path="/solo" element={<SoloPlayScreen />} />
             <Route path="/review" element={<ReviewScreen />} />
             <Route path="/review/:gameId" element={<ReviewScreen />} />
             <Route path="/openings" element={<OpeningsScreen />} />

@@ -308,6 +308,37 @@ export const HomeScreen: React.FC = () => {
         </Card>
       </div>
 
+      {/* Solo Play Feature Spotlight Banner */}
+      <Card variant="surface-2" className="p-4 sm:p-5 border border-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="space-y-1.5 max-w-xl">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">♟️</span>
+            <Badge variant="primary" size="sm">
+              নতুন ফিচার
+            </Badge>
+            <span className="text-xs font-semibold text-primary">
+              নিজে একা খেলো ও সীমাহীন ইঙ্গিত
+            </span>
+          </div>
+          <h3 className="font-bold text-base text-fg">
+            বোর্ডের উভয় পক্ষে একা একা খেলুন এবং যেকোনো মুহূর্তে স্টকফিশের সেরা ইঙ্গিত নিন
+          </h3>
+          <p className="text-xs text-muted leading-relaxed">
+            কোনো সীমাবদ্ধতা ছাড়া নিজেই নিজের সাথে দাবা খেলুন। প্রতিটি চালে স্টকফিশের সর্বোচ্চ মানের চাল ও বাংলা শিক্ষকসুলভ ব্যাখ্যা দেখুন।
+          </p>
+        </div>
+
+        <Button
+          onClick={() => navigate('/solo')}
+          variant="primary"
+          size="md"
+          className="shrink-0 shadow-sm"
+          rightIcon={<ArrowRight className="w-4 h-4" />}
+        >
+          এখনই শুরু করো
+        </Button>
+      </Card>
+
       {/* Last Game Banner */}
       <div className="space-y-3 pt-2">
         <h2 className="text-lg font-bold text-fg flex items-center gap-2">

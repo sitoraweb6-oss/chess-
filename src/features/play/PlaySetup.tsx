@@ -1,5 +1,6 @@
 import React from 'react';
-import { Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Sparkles } from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { bn, toBanglaNumeral } from '../../i18n/bn.ts';
@@ -20,8 +21,28 @@ export const PlaySetup: React.FC<PlaySetupProps> = ({
   onColorChange,
   onStartGame,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <Card className="max-w-md mx-auto my-6 p-6 space-y-6">
+      {/* Mode Switcher Tabs */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-xl border border-border">
+        <button
+          type="button"
+          className="py-2 px-2 text-xs font-bold rounded-lg bg-primary text-primary-fg shadow-xs flex items-center justify-center gap-1.5 cursor-default"
+        >
+          <span>🤖 বটের সাথে ম্যাচ</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/solo')}
+          className="py-2 px-2 text-xs font-medium rounded-lg text-muted hover:text-fg hover:bg-surface flex items-center justify-center gap-1.5 transition-colors cursor-pointer touch-target"
+        >
+          <span>👤 নিজে একা খেলো</span>
+          <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-bold">সীমাহীন</span>
+        </button>
+      </div>
+
       <div className="text-center">
         <h2 className="text-2xl font-bold text-fg">{bn.play.setupTitle}</h2>
         <p className="text-sm text-muted mt-1">{bn.home.startPlaySub}</p>

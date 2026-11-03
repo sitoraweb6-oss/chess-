@@ -10,6 +10,7 @@ export const Navbar: React.FC = () => {
   const navLinks: { path: string; label: string; badge?: string }[] = [
     { path: '/', label: bn.nav.home },
     { path: '/play', label: bn.nav.play },
+    { path: '/solo', label: bn.nav.solo, badge: 'সীমাহীন ইঙ্গিত' },
     { path: '/openings', label: bn.nav.openings },
     { path: '/puzzles', label: 'ভুলের পাজল' },
   ];
